@@ -82,14 +82,16 @@ Login (enter name)
   → Three gift boxes → memories / messages / surprise
 ```
 
-### Data & persistence (no server needed)
+### Data & persistence
 
 | Key | Purpose | Storage |
 |---|---|---|
 | `bday_session` | user + 24h expiry | `localStorage` |
-| `bday_wishLinks` | wish links + memories | `localStorage` |
+| `bday_wishLinks` | wish links + memories | `localStorage` + Netlify Blobs |
 
-Photos uploaded to a wish link are stored as compressed data-URLs (capped for quota). For real multi-user sharing you'd move this to a backend (see below).
+Every wish link is saved locally **and** published to a small Netlify Function (`netlify/functions/wish.mjs`, `GET/POST /api/wish`) backed by Netlify's Blob store, so the link works on *any* device that opens it — not just the browser that created it. If the POST fails (offline / local `vite dev` without functions), the wish still works on the creator's own browser.
+
+Photos uploaded to a wish link are downscaled to ≤1400px JPEG/PNG before saving, keeping the shareable link and blob payload small. There is no login to the app; the birthday person's name acts as their identity, so no per-user accounts or real backend are required.
 
 ## 🔌 Wiring a real AI wish API
 
@@ -98,7 +100,6 @@ Photos uploaded to a wish link are stored as compressed data-URLs (capped for qu
 ## 🧭 Roadmap ideas (from the master spec)
 
 - Backend (Node + Postgres + S3) for durable memories & real auth
-- WebXR **AR mode** (place the cake in your room)
 - Voice commands ("blow out the candles") via Web Speech API
 - QR codes on wish links, email reminders, multi-user real-time celebrations
 - Custom cake builder, theme presets (cyberpunk, nature, luxury…), gamification badges

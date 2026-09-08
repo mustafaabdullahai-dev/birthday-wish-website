@@ -21,6 +21,7 @@ interface AppState {
   toggleMusic: () => void
   setVolume: (v: number) => void
   applyLink: (slug: string) => WishLink | null
+  applyRemoteLink: (link: WishLink) => void
 }
 
 export const useStore = create<AppState>()(
@@ -61,6 +62,10 @@ export const useStore = create<AppState>()(
         const link = links.find((l) => l.slug === slug) ?? null
         set({ themedFromLink: link, linkSeed: slug })
         return link
+      },
+
+      applyRemoteLink: (link) => {
+        set({ themedFromLink: link ?? null, linkSeed: link?.slug ?? null })
       },
     }),
     {
@@ -121,7 +126,31 @@ export function saveWishLink(input: {
   }
   links.unshift(link)
   localStorage.setItem('bday_wishLinks', JSON.stringify(links))
+  void persistWishRemote(link)
   return link
+}
+
+async function persistWishRemote(link: WishLink): Promise<void> {
+  try {
+    await fetch('/api/wish', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(link),
+    })
+  } catch {
+    // offline / local dev without functions — wish still works in this browser
+  }
+}
+
+export async function fetchWishLink(slug: string): Promise<WishLink | null> {
+  try {
+    const res = await fetch(`/api/wish?slug=${encodeURIComponent(slug)}`)
+    if (!res.ok) return null
+    const data = (await res.json()) as WishLink
+    return data && typeof data === 'object' && typeof data.forName === 'string' ? data : null
+  } catch {
+    return null
+  }
 }
 
 export function getGreetingEra(): string {

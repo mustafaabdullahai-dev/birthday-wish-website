@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, useCallback, lazy, Suspense } from 'react'
 import { AnimatePresence } from 'framer-motion'
 import type { MemoryFile } from './types'
-import { useStore, isSessionValid } from './store/useStore'
+import { useStore, isSessionValid, fetchWishLink } from './store/useStore'
 import { paletteForName } from './utils/helpers'
 import { LoginScreen } from './components/LoginScreen'
 import { CreateWish } from './components/CreateWish'
@@ -28,31 +28,53 @@ export default function App() {
   const setScreen = useStore((s) => s.setScreen)
   const themedFromLink = useStore((s) => s.themedFromLink)
   const applyLink = useStore((s) => s.applyLink)
+  const applyRemoteLink = useStore((s) => s.applyRemoteLink)
 
   const [celebrateName, setCelebrateName] = useState<string | null>(null)
   const [celebrateCtx, setCelebrateCtx] = useState<CelebrateCtx>({})
+  const [wishLoading, setWishLoading] = useState(false)
+  const [wishMissing, setWishMissing] = useState(false)
 
-  const handleHash = useCallback(() => {
+  const handleHash = useCallback(async () => {
     const slug = parseHash()
     if (!slug) return
-    const link = applyLink(slug)
-    if (link) {
+    const local = applyLink(slug)
+    if (local) {
       setCelebrateCtx({
-        cakeColor: link.cakeColor,
-        message: link.message,
-        fromName: link.fromName,
-        memories: link.memories,
+        cakeColor: local.cakeColor,
+        message: local.message,
+        fromName: local.fromName,
+        memories: local.memories,
       })
-      setCelebrateName(link.forName)
+      setCelebrateName(local.forName)
       setScreen('celebration')
+      setWishMissing(false)
+      return
     }
-  }, [applyLink, setScreen])
+    setWishLoading(true)
+    const remote = await fetchWishLink(slug)
+    setWishLoading(false)
+    if (remote) {
+      applyRemoteLink(remote)
+      setCelebrateCtx({
+        cakeColor: remote.cakeColor,
+        message: remote.message,
+        fromName: remote.fromName,
+        memories: remote.memories,
+      })
+      setCelebrateName(remote.forName)
+      setScreen('celebration')
+      setWishMissing(false)
+    } else {
+      setWishMissing(true)
+    }
+  }, [applyLink, applyRemoteLink, setScreen])
 
   useEffect(() => {
     const valid = session && isSessionValid(session)
     const slug = parseHash()
     if (slug) {
-      handleHash()
+      void handleHash()
     } else if (valid) {
       setCelebrateName(session.user.username)
       setScreen('celebration')
@@ -65,6 +87,7 @@ export default function App() {
       setCelebrateCtx({})
       setCelebrateName(name)
       setScreen('celebration')
+      setWishMissing(false)
     },
     [setScreen],
   )
@@ -115,12 +138,46 @@ export default function App() {
   }
 
   return (
-    <AnimatePresence mode="wait">
-      {screen === 'create' ? (
-        <CreateWish key="create" palette={paletteForName('creator')} />
-      ) : (
-        <LoginScreen key="login" palette={palette} onStart={(n) => goCelebrate(n)} />
+    <>
+      <AnimatePresence mode="wait">
+        {screen === 'create' ? (
+          <CreateWish key="create" palette={paletteForName('creator')} />
+        ) : (
+          <LoginScreen key="login" palette={palette} onStart={(n) => goCelebrate(n)} />
+        )}
+      </AnimatePresence>
+
+      {wishLoading && (
+        <div className="wish-overlay">
+          <div className="wish-overlay-card">
+            <span className="wish-spinner" />
+            <p>Fetching your celebration…</p>
+          </div>
+        </div>
       )}
-    </AnimatePresence>
+
+      {wishMissing && !wishLoading && (
+        <div className="wish-overlay">
+          <div className="wish-overlay-card">
+            <span className="wish-overlay-icon">🫧</span>
+            <h3>This wish link could not be found</h3>
+            <p>It may never have been shared, or the wish was made before links were stored online.</p>
+            <button
+              className="btn-primary"
+              style={{ ['--glow' as string]: palette.primary }}
+              onClick={() => {
+                setWishMissing(false)
+                setScreen('create')
+              }}
+            >
+              ✨ Create your own wish instead
+            </button>
+            <button className="btn-ghost" onClick={() => setWishMissing(false)}>
+              Back to home
+            </button>
+          </div>
+        </div>
+      )}
+    </>
   )
 }

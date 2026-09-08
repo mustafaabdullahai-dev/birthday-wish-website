@@ -3,7 +3,7 @@ import { motion } from 'framer-motion'
 import type { Emotion, MemoryFile } from '../types'
 import { useStore } from '../store/useStore'
 import { saveWishLink, readWishLinks } from '../store/useStore'
-import { paletteForName, uid, generateWish, todayISO, initials } from '../utils/helpers'
+import { paletteForName, uid, generateWish, todayISO, initials, downscaleImage } from '../utils/helpers'
 import { audio } from '../utils/audioEngine'
 import type { Palette } from '../types'
 
@@ -35,21 +35,37 @@ export function CreateWish({ palette }: { palette: Palette }) {
     if (imgs.length === 0) return
     setCompact(true)
     imgs.forEach((f) => {
-      const reader = new FileReader()
-      reader.onload = () => {
-        setMemories((prev) => {
-          if (prev.length >= 20) return prev
-          const item: MemoryFile = {
-            id: uid(),
-            type: 'image',
-            dataUrl: String(reader.result),
-            caption: f.name.replace(/\.[^.]+$/, ''),
-            uploadedAt: todayISO(),
-          }
-          return [...prev, item]
+      downscaleImage(f)
+        .then((dataUrl) => {
+          setMemories((prev) => {
+            if (prev.length >= 20) return prev
+            const item: MemoryFile = {
+              id: uid(),
+              type: 'image',
+              dataUrl,
+              caption: f.name.replace(/\.[^.]+$/, ''),
+              uploadedAt: todayISO(),
+            }
+            return [...prev, item]
+          })
         })
-      }
-      reader.readAsDataURL(f)
+        .catch(() => {
+          const reader = new FileReader()
+          reader.onload = () => {
+            setMemories((prev) => {
+              if (prev.length >= 20) return prev
+              const item: MemoryFile = {
+                id: uid(),
+                type: 'image',
+                dataUrl: String(reader.result),
+                caption: f.name.replace(/\.[^.]+$/, ''),
+                uploadedAt: todayISO(),
+              }
+              return [...prev, item]
+            })
+          }
+          reader.readAsDataURL(f)
+        })
     })
   }, [])
 
