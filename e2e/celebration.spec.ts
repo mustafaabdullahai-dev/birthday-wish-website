@@ -1,16 +1,11 @@
 import { test, expect } from '@playwright/test'
 
-test('landing page renders and starts the celebration', async ({ page }) => {
+test('landing page renders and offers wish creation', async ({ page }) => {
   await page.goto('/')
 
   await expect(page.getByRole('heading', { name: /celebrate/i })).toBeVisible()
-  await expect(page.getByPlaceholder('Enter the birthday name...')).toBeVisible()
-
-  await page.getByPlaceholder('Enter the birthday name...').fill('Sara')
-  await page.getByRole('button', { name: 'Start the Celebration' }).click()
-
-  // Celebration screen should mount (2D fallback if WebGL is unavailable).
-  await expect(page.locator('.celebration-screen, .fallback-scene').first()).toBeVisible({ timeout: 15_000 })
+  await expect(page.getByRole('button', { name: /create a wish link/i })).toBeVisible()
+  await expect(page.getByPlaceholder(/paste the wish link/i)).toBeVisible()
 })
 
 test('guestbook opens for a wish link', async ({ page }) => {
@@ -53,10 +48,32 @@ test('create-wish flow produces a shareable link', async ({ page }) => {
 })
 
 test('essential controls appear on the celebration controls bar', async ({ page }) => {
+  // Seed a saved wish link so the landing page offers it under "Jump back in".
+  await page.addInitScript(() => {
+    localStorage.setItem(
+      'bday_wishLinks',
+      JSON.stringify([
+        {
+          id: 'seed-1',
+          slug: 'sara-seeded',
+          forName: 'Sara',
+          fromName: 'Ali',
+          emotion: 'joyful',
+          message: 'Happy birthday Sara',
+          cakeColor: '#FF9E9E',
+          theme: '0',
+          themePreset: 'classic-gold',
+          birthdayKnown: true,
+          memories: [],
+          createdAt: new Date().toISOString(),
+        },
+      ]),
+    )
+  })
+
   await page.goto('/')
 
-  await page.getByPlaceholder('Enter the birthday name...').fill('Test')
-  await page.getByRole('button', { name: 'Start the Celebration' }).click()
+  await page.getByRole('button', { name: /sara/i }).click()
 
   const controls = page.locator('.controls-bar')
   await expect(controls).toBeVisible({ timeout: 15_000 })

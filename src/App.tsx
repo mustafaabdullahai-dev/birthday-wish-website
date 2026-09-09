@@ -112,24 +112,17 @@ export default function App() {
   }, [applyLink, applyRemoteLink, setScreen])
 
   useEffect(() => {
+    const onHash = () => void handleHash()
     const slug = parseHash()
     if (slug) {
       void handleHash()
     } else {
       resetMeta()
     }
+    window.addEventListener('hashchange', onHash)
+    return () => window.removeEventListener('hashchange', onHash)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-
-  const goCelebrate = useCallback(
-    (name: string) => {
-      setCelebrateCtx({})
-      setCelebrateName(name)
-      setScreen('celebration')
-      setWishMissing(false)
-    },
-    [setScreen],
-  )
 
   const displayName = celebrateName ?? (session && isSessionValid(session) ? session.user.username : null)
   const basePalette = useMemo(() => paletteForName(displayName ?? 'friend'), [displayName])
@@ -169,7 +162,7 @@ export default function App() {
         {screen === 'create' ? (
           <CreateWish key="create" />
         ) : (
-          <LoginScreen key="login" palette={palette} onStart={(n) => goCelebrate(n)} />
+          <LoginScreen key="login" palette={palette} />
         )}
       </AnimatePresence>
 

@@ -1,8 +1,8 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useRef } from 'react'
 import { motion } from 'framer-motion'
-import { useStore, isSessionValid } from '../store/useStore'
+import { useStore, readWishLinks } from '../store/useStore'
 import { audio } from '../utils/audioEngine'
-import { initials } from '../utils/helpers'
+import { initials, paletteForName } from '../utils/helpers'
 import type { Palette } from '../types'
 import { useI18n, LOCALES, type Locale } from '../i18n'
 
@@ -38,30 +38,38 @@ function FloatingBits() {
   )
 }
 
-export function LoginScreen({ palette, onStart }: { palette: Palette; onStart: (name: string) => void }) {
-  const session = useStore((s) => s.session)
-  const login = useStore((s) => s.login)
+function extractSlug(raw: string): string | null {
+  const t = raw.trim()
+  if (!t) return null
+  const m = t.match(/(?:[#/]|^)celebrate\/([A-Za-z0-9-]+)/i)
+  const slug = (m ? m[1] : t).replace(/[#/]*$/, '')
+  return /^[A-Za-z0-9-]{1,64}$/.test(slug) ? slug : null
+}
+
+export function LoginScreen({ palette }: { palette: Palette }) {
   const setScreen = useStore((s) => s.setScreen)
   const { locale, setLocale } = useI18n()
-  const [name, setName] = useState('')
+  const [link, setLink] = useState('')
   const [error, setError] = useState('')
-  const inputRef = useRef<HTMLInputElement>(null)
-  const returning = session && isSessionValid(session)
+  const openRef = useRef<HTMLInputElement>(null)
+  const recents = readWishLinks().slice(0, 4)
 
-  useEffect(() => {
-    inputRef.current?.focus()
-  }, [])
+  const openSlug = (slug: string) => {
+    audio.resume()
+    window.location.hash = `/celebrate/${slug}`
+  }
 
-  const submit = (targetName?: string) => {
-    const clean = (targetName ?? name).trim()
-    if (!clean) {
-      setError('Please enter your name to begin')
+  const submitLink = (e: React.FormEvent) => {
+    e.preventDefault()
+    const slug = extractSlug(link)
+    if (!slug) {
+      setError('Paste a wish link like #/celebrate/sara-abc123 or just its slug.')
+      openRef.current?.focus()
       return
     }
+    setError('')
     audio.resume()
-    audio.fanfare()
-    login(clean)
-    onStart(clean)
+    window.location.hash = `/celebrate/${slug}`
   }
 
   return (
@@ -93,19 +101,11 @@ export function LoginScreen({ palette, onStart }: { palette: Palette; onStart: (
       <div className="sparkle" style={{ bottom: '18%', right: '24%', animationDelay: '3.1s' }}>🎁</div>
 
       <motion.main
-        className="login-card"
+        className="login-card landing"
         initial={{ y: 24, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.6, ease: 'easeOut' }}
       >
-        <div className="login-badges">
-          {returning && (
-            <button className="chip" onClick={() => submit(session.user.username)}>
-              Welcome back, {session.user.username}
-            </button>
-          )}
-        </div>
-
         <div className="logo-mark">
           <span className="logo-cake">🎂</span>
           <span className="logo-eyebrow">A celebration in your browser</span>
@@ -115,59 +115,74 @@ export function LoginScreen({ palette, onStart }: { palette: Palette; onStart: (
           </h1>
         </div>
 
-        <p className="tagline">A magical 3D birthday experience, created just for one special person.</p>
+        <p className="tagline">Make a moment they'll never forget — craft a wish, share a magic link.</p>
 
-        <form
-          onSubmit={(e) => {
-            e.preventDefault()
-            submit()
+        <button
+          type="button"
+          className="action-create"
+          style={{ ['--glow' as string]: palette.primary }}
+          onClick={() => {
+            audio.resume()
+            setScreen('create')
           }}
         >
-          <div className="name-field">
-            <input
-              ref={inputRef}
-              type="text"
-              value={name}
-              onChange={(e) => {
-                setName(e.target.value)
-                setError('')
-              }}
-              placeholder="Enter the birthday name..."
-              maxLength={24}
-              autoComplete="off"
-              spellCheck={false}
-              aria-label="Birthday name"
-            />
-            <span className="name-hint">Yes — your name is the password. Typing is magic.</span>
-          </div>
-          {error && <p className="error-text">{error}</p>}
-          <button type="submit" className="btn-primary" style={{ ['--glow' as string]: palette.primary }}>
-            <motion.span whileTap={{ scale: 0.96 }}>Start the Celebration</motion.span>
-          </button>
-          {name.trim() && (
-            <div className="avatar-preview" style={{ borderColor: palette.primary }}>
-              <span style={{ background: palette.primary }}>{initials(name)}</span>
-              <em>Celebrating <strong>{name.trim()}</strong></em>
-            </div>
-          )}
-        </form>
+          <span className="action-create-icon">🎁</span>
+          <span className="action-create-copy">
+            <strong>Create a wish link</strong>
+            <small>Pick the vibe, add photos & memories, and share a private celebration.</small>
+          </span>
+          <span className="action-create-arrow">→</span>
+        </button>
 
         <div className="login-actions">
-          <button
-            className="link-btn"
-            onClick={() => {
-              audio.resume()
-              setScreen('create')
-            }}
-          >
-            🎁 Create a wish link for someone else
-          </button>
+          <p className="login-actions-or">— or —</p>
+
+          <div className="open-card">
+            <span className="open-eyebrow">Already have a link?</span>
+            <form className="open-row" onSubmit={submitLink}>
+              <input
+                ref={openRef}
+                value={link}
+                onChange={(e) => {
+                  setLink(e.target.value)
+                  setError('')
+                }}
+                placeholder="Paste the wish link or slug…"
+                maxLength={120}
+                spellCheck={false}
+                autoComplete="off"
+                aria-label="Wish link"
+              />
+              <button type="submit" className="btn-primary" style={{ ['--glow' as string]: palette.primary }}>
+                Open
+              </button>
+            </form>
+            {error && <p className="error-text">{error}</p>}
+          </div>
+
+          {recents.length > 0 && (
+            <div className="recent-list">
+              <span className="open-eyebrow">Jump back in</span>
+              {recents.map((r) => (
+                <button key={r.id} className="recent-link" onClick={() => openSlug(r.slug)}>
+                  <span className="recent-avatar" style={{ background: paletteForName(r.forName).primary }}>
+                    {initials(r.forName)}
+                  </span>
+                  <span className="recent-name">
+                    <strong>{r.forName}</strong>
+                    <em>wish by {r.fromName}</em>
+                  </span>
+                  <span className="recent-go">open →</span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         <footer className="login-foot">
-          <span>💡 Tip: Share the link so friends can upload memories & wishes.</span>
+          <span>💡 Share a wish link so friends can upload memories & wishes.</span>
           <label className="hint-muted">
-            Your name is your password — super easy, zero forgettable.
+            No account. No password. Just a magic link.
           </label>
         </footer>
       </motion.main>
