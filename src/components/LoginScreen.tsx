@@ -108,6 +108,7 @@ export function LoginScreen({ palette, onStart }: { palette: Palette; onStart: (
 
         <div className="logo-mark">
           <span className="logo-cake">🎂</span>
+          <span className="logo-eyebrow">A celebration in your browser</span>
           <h1 className="logo-title">
             Celebrate<span className="dot" style={{ color: palette.primary }}>.</span>
             <span className="dot" style={{ color: palette.accent }}>.</span>
