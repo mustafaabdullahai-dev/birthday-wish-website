@@ -82,6 +82,7 @@ export function CelebrateScreen({ name, palette, cakeColor, cakeMessage, cakeFro
         candlesOut={candlesOut}
         cakeEmerging={cakeEmerging}
         onBlow={handleBlow}
+        cakeFrom={cakeFrom}
         activePhase={stage === 'letter' || stage === 'gifts' ? 'idle' : 'active'}
       />
 
@@ -163,10 +164,18 @@ function CelebrateControls({ onRestart }: { onRestart: () => void }) {
   const setVolume = useStore((s) => s.setVolume)
   const logout = useStore((s) => s.logout)
   const setScreen = useStore((s) => s.setScreen)
+  const [uiLight, setUiLight] = useState(false)
 
   useEffect(() => {
     audio.setVolume(volume)
   }, [volume])
+
+  const toggleUiTheme = () => {
+    const next = !uiLight
+    setUiLight(next)
+    document.body.classList.toggle('ui-light', next)
+    document.body.classList.toggle('ui-forced-dark', !next && window.matchMedia('(prefers-color-scheme: light)').matches)
+  }
 
   return (
     <div className="controls-bar">
@@ -178,6 +187,7 @@ function CelebrateControls({ onRestart }: { onRestart: () => void }) {
           else audio.stopMusic()
         }}
         aria-label={musicOn ? 'Mute music' : 'Play music'}
+        title={musicOn ? 'Mute music' : 'Play music'}
       >
         {musicOn ? '🔊' : '🔇'}
       </button>
@@ -195,8 +205,11 @@ function CelebrateControls({ onRestart }: { onRestart: () => void }) {
           aria-label="Volume"
         />
       </div>
-      <button className="ctl" onClick={onRestart} aria-label="Replay celebration">
+      <button className="ctl" onClick={onRestart} aria-label="Replay celebration" title="Replay celebration">
         🔄
+      </button>
+      <button className="ctl" onClick={toggleUiTheme} aria-label="Toggle UI theme" title="Toggle UI theme">
+        {uiLight ? '🌙' : '☀️'}
       </button>
       <button
         className="ctl"

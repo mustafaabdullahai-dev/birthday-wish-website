@@ -1,4 +1,4 @@
-import type { Palette, Emotion } from '../types'
+import type { Palette, Emotion, ThemePreset } from '../types'
 
 export const PALETTES: Palette[] = [
   {
@@ -63,6 +63,48 @@ export function hashName(name: string): number {
 
 export function paletteForName(name: string): Palette {
   return PALETTES[hashName(name) % PALETTES.length]
+}
+
+export const THEME_PRESETS: Record<ThemePreset, { label: string; palette: Palette }> = {
+  'classic-gold': {
+    label: 'Classic Gold',
+    palette: {
+      primary: '#FFD700',
+      secondary: '#FF69B4',
+      accent: '#06D6A0',
+      glow: '#fff3b0',
+      background: [14, 10, 34],
+      dark: '#120d28',
+    },
+  },
+  'pastel-dream': {
+    label: 'Pastel Dream',
+    palette: {
+      primary: '#FFB6C1',
+      secondary: '#B19CD9',
+      accent: '#77DD77',
+      glow: '#ffe9f0',
+      background: [30, 22, 40],
+      dark: '#2a1f3d',
+    },
+  },
+  'midnight-neon': {
+    label: 'Midnight Neon',
+    palette: {
+      primary: '#FF1493',
+      secondary: '#00FFFF',
+      accent: '#FF9E00',
+      glow: '#ffb3e0',
+      background: [6, 6, 30],
+      dark: '#08081f',
+    },
+  },
+}
+
+export function applyThemePreset(base: Palette, preset?: ThemePreset): Palette {
+  if (!preset) return base
+  const p = THEME_PRESETS[preset]?.palette
+  return p ? { ...base, ...p } : base
 }
 
 export function versionForName(name: string): number {

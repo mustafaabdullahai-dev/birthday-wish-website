@@ -6,6 +6,8 @@ import { Fireworks } from './Fireworks'
 import { Balloons } from './Balloons'
 import { Confetti } from './Confetti'
 import { Cake } from './Cake'
+import { ErrorBoundary } from '../components/ErrorBoundary'
+import { WebGLFallback } from '../components/WebGLFallback'
 
 interface SceneProps {
   name: string
@@ -14,7 +16,20 @@ interface SceneProps {
   candlesOut: boolean
   cakeEmerging: boolean
   onBlow: () => void
+  cakeFrom?: string
   activePhase?: 'idle' | 'active'
+}
+
+function webglAvailable(): boolean {
+  try {
+    const canvas = document.createElement('canvas')
+    return !!(
+      window.WebGLRenderingContext &&
+      (canvas.getContext('webgl') || canvas.getContext('experimental-webgl'))
+    )
+  } catch {
+    return false
+  }
 }
 
 function getQualityTier(): { dprMax: number; isLowEnd: boolean } {
@@ -75,12 +90,12 @@ export function CelebrationScene({
   candlesOut,
   cakeEmerging,
   onBlow,
+  cakeFrom,
   activePhase = 'active',
 }: SceneProps) {
   const { dprMax, isLowEnd } = useMemo(() => getQualityTier(), [])
   const balloonCount = isLowEnd ? 6 : 12
-
-  return (
+  const canvas = (
     <Canvas
       shadows={!isLowEnd}
       dpr={[1, dprMax]}
@@ -88,6 +103,11 @@ export function CelebrationScene({
       gl={{ antialias: !isLowEnd, alpha: true }}
       camera={{ position: [0, 1.6, 14], fov: 55 }}
       style={{ position: 'absolute', inset: 0 }}
+      onCreated={({ gl }) => {
+        if (gl.getContext().isContextLost()) {
+          throw new Error('WebGL context lost')
+        }
+      }}
     >
       <color attach="background" args={[palette.background[0] / 255, palette.background[1] / 255, palette.background[2] / 255]} />
       <fog attach="fog" args={['#0c0a20', 20, 42]} />
@@ -108,5 +128,37 @@ export function CelebrationScene({
         />
       </Suspense>
     </Canvas>
+  )
+
+  if (!webglAvailable()) {
+    return (
+      <WebGLFallback
+        name={name}
+        palette={palette}
+        cakeColor={cakeColor}
+        cakeFrom={cakeFrom}
+        onBlow={onBlow}
+        candlesOut={candlesOut}
+        cakeEmerging={cakeEmerging}
+      />
+    )
+  }
+
+  return (
+    <ErrorBoundary
+      fallback={
+        <WebGLFallback
+          name={name}
+          palette={palette}
+          cakeColor={cakeColor}
+          cakeFrom={cakeFrom}
+          onBlow={onBlow}
+          candlesOut={candlesOut}
+          cakeEmerging={cakeEmerging}
+        />
+      }
+    >
+      {canvas}
+    </ErrorBoundary>
   )
 }

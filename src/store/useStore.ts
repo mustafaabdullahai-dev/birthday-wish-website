@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
-import type { SessionUser, Screen, WishLink, MemoryFile, CelebrationStage, Emotion } from '../types'
+import type { SessionUser, Screen, WishLink, MemoryFile, CelebrationStage, Emotion, ThemePreset } from '../types'
 import { paletteForName, uid, todayISO, makeSlug, hashName } from '../utils/helpers'
 
 const SESSION_TTL = 24 * 60 * 60 * 1000
@@ -110,6 +110,8 @@ export function saveWishLink(input: {
   message: string
   cakeColor: string
   memories: MemoryFile[]
+  themePreset?: ThemePreset
+  expiresAt?: string
 }): WishLink {
   const links = readWishLinks()
   const link: WishLink = {
@@ -121,6 +123,8 @@ export function saveWishLink(input: {
     message: input.message,
     cakeColor: input.cakeColor,
     theme: String(hashName(input.forName) % 6),
+    themePreset: input.themePreset,
+    expiresAt: input.expiresAt,
     memories: input.memories,
     createdAt: todayISO(),
   }

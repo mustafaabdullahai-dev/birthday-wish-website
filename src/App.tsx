@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState, useCallback, lazy, Suspense } from 'react'
-import { AnimatePresence } from 'framer-motion'
+import { AnimatePresence, motion } from 'framer-motion'
 import type { MemoryFile } from './types'
 import { useStore, isSessionValid, fetchWishLink } from './store/useStore'
-import { paletteForName } from './utils/helpers'
+import { paletteForName, applyThemePreset } from './utils/helpers'
 import { LoginScreen } from './components/LoginScreen'
 import { CreateWish } from './components/CreateWish'
+import { LoadingCandle } from './components/LoadingCandle'
 
 const CelebrateScreen = lazy(() =>
   import('./components/CelebrateScreen').then((m) => ({ default: m.CelebrateScreen })),
@@ -93,7 +94,11 @@ export default function App() {
   )
 
   const displayName = celebrateName ?? (session && isSessionValid(session) ? session.user.username : null)
-  const palette = useMemo(() => paletteForName(displayName ?? 'friend'), [displayName])
+  const basePalette = useMemo(() => paletteForName(displayName ?? 'friend'), [displayName])
+  const palette = useMemo(
+    () => applyThemePreset(basePalette, themedFromLink?.themePreset),
+    [basePalette, themedFromLink?.themePreset],
+  )
 
   const activeCtx: CelebrateCtx = themedFromLink
     ? {
@@ -106,24 +111,7 @@ export default function App() {
 
   if (displayName && screen === 'celebration') {
     return (
-      <Suspense
-        fallback={
-          <div
-            style={{
-              position: 'fixed',
-              inset: 0,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              background: '#0e0a22',
-              color: '#fff',
-              fontFamily: 'Poppins, sans-serif',
-            }}
-          >
-            🎆 Lighting the fireworks…
-          </div>
-        }
-      >
+      <Suspense fallback={<LoadingCandle palette={palette} />}>
         <CelebrateScreen
           key={displayName}
           name={displayName}
@@ -157,11 +145,27 @@ export default function App() {
       )}
 
       {wishMissing && !wishLoading && (
-        <div className="wish-overlay">
-          <div className="wish-overlay-card">
-            <span className="wish-overlay-icon">🫧</span>
+        <motion.div
+          className="wish-overlay"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          style={{ background: `radial-gradient(circle at 50% 30%, ${palette.dark}, #05030f 80%)` }}
+        >
+          <motion.div
+            className="wish-overlay-card"
+            initial={{ scale: 0.85, y: 24, opacity: 0 }}
+            animate={{ scale: 1, y: 0, opacity: 1 }}
+            transition={{ type: 'spring', stiffness: 120, damping: 15 }}
+          >
+            <motion.span
+              className="wish-overlay-icon"
+              animate={{ y: [0, -8, 0] }}
+              transition={{ repeat: Infinity, duration: 2.2 }}
+            >
+              🫧
+            </motion.span>
             <h3>This wish link could not be found</h3>
-            <p>It may never have been shared, or the wish was made before links were stored online.</p>
+            <p>It may have never been shared, or the celebration has since passed. The magic lives on — make your own moment.</p>
             <button
               className="btn-primary"
               style={{ ['--glow' as string]: palette.primary }}
@@ -175,8 +179,8 @@ export default function App() {
             <button className="btn-ghost" onClick={() => setWishMissing(false)}>
               Back to home
             </button>
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
       )}
     </>
   )

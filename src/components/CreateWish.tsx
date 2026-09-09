@@ -1,9 +1,9 @@
 import { useState, useCallback } from 'react'
 import { motion } from 'framer-motion'
-import type { Emotion, MemoryFile } from '../types'
+import type { Emotion, MemoryFile, ThemePreset } from '../types'
 import { useStore } from '../store/useStore'
 import { saveWishLink, readWishLinks } from '../store/useStore'
-import { paletteForName, uid, generateWish, todayISO, initials, downscaleImage } from '../utils/helpers'
+import { paletteForName, uid, generateWish, todayISO, initials, downscaleImage, THEME_PRESETS } from '../utils/helpers'
 import { audio } from '../utils/audioEngine'
 import type { Palette } from '../types'
 
@@ -17,17 +17,28 @@ const EMOTIONS: { id: Emotion; label: string; icon: string }[] = [
 
 const CAKE_COLORS = ['#FF9E9E', '#9ED8FF', '#FFE38F', '#B7E39E', '#D9B0FF', '#FFB6D9', '#8FF0E0']
 
+const EXPIRE_OPTIONS: { id: string; label: string; ms: number | null }[] = [
+  { id: '90d', label: 'Keep for 90 days', ms: 90 * 24 * 60 * 60 * 1000 },
+  { id: '1y', label: 'Keep for 1 year', ms: 365 * 24 * 60 * 60 * 1000 },
+  { id: 'never', label: 'Keep forever', ms: null },
+]
+
+const THEME_PRESET_LIST = Object.entries(THEME_PRESETS) as [ThemePreset, { label: string; palette: Palette }][]
+
 export function CreateWish({ palette }: { palette: Palette }) {
   const setScreen = useStore((s) => s.setScreen)
   const [forName, setForName] = useState('')
   const [fromName, setFromName] = useState('')
   const [emotion, setEmotion] = useState<Emotion>('joyful')
   const [cakeColor, setCakeColor] = useState('#FF9E9E')
+  const [themePreset, setThemePreset] = useState<ThemePreset>('classic-gold')
+  const [expire, setExpire] = useState('90d')
   const [message, setMessage] = useState('')
   const [memories, setMemories] = useState<MemoryFile[]>([])
   const [link, setLink] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [compact, setCompact] = useState(false)
+  const [honeypot, setHoneypot] = useState('')
 
   const handleUpload = useCallback((files: FileList | null) => {
     if (!files) return
@@ -70,6 +81,7 @@ export function CreateWish({ palette }: { palette: Palette }) {
   }, [])
 
   const createLink = () => {
+    if (honeypot) return
     const cleanFor = forName.trim()
     if (!cleanFor) {
       setError("Enter the birthday person's name")
@@ -78,12 +90,16 @@ export function CreateWish({ palette }: { palette: Palette }) {
     const cleanFrom = fromName.trim() || 'A secret admirer'
     const wishText = message.trim() || generateWish(cleanFor, emotion)
     audio.chime()
+    const exp = EXPIRE_OPTIONS.find((e) => e.id === expire)
+    const expiresAt = exp && exp.ms ? new Date(Date.now() + exp.ms).toISOString() : undefined
     const link = saveWishLink({
       forName: cleanFor,
       fromName: cleanFrom,
       emotion,
       message: wishText,
       cakeColor,
+      themePreset,
+      expiresAt,
       memories,
     })
     setLink(`${window.location.origin}${window.location.pathname}#/celebrate/${link.slug}`)
@@ -175,6 +191,38 @@ export function CreateWish({ palette }: { palette: Palette }) {
             </div>
 
             <div className="field-block">
+              <span className="field-label">Theme preset</span>
+              <div className="theme-row">
+                {THEME_PRESET_LIST.map(([id, t]) => (
+                  <button
+                    key={id}
+                    className={`theme-btn ${themePreset === id ? 'active' : ''}`}
+                    onClick={() => setThemePreset(id)}
+                    style={themePreset === id ? { borderColor: t.palette.primary } : undefined}
+                  >
+                    <span className="theme-swatch" style={{ background: `linear-gradient(135deg, ${t.palette.primary}, ${t.palette.secondary})` }} />
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="field-block">
+              <span className="field-label">Wish link lifespan</span>
+              <div className="expire-row">
+                {EXPIRE_OPTIONS.map((e) => (
+                  <button
+                    key={e.id}
+                    className={`expire-btn ${expire === e.id ? 'active' : ''}`}
+                    onClick={() => setExpire(e.id)}
+                  >
+                    {e.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="field-block">
               <span className="field-label">
                 Your personal message <small>(optional — the star will rewrite it as AI✨ else)</small>
               </span>
@@ -212,6 +260,10 @@ export function CreateWish({ palette }: { palette: Palette }) {
                   ))}
                 </div>
               )}
+            </div>
+
+            <div className="honeypot" aria-hidden="true">
+              <label>Leave this field empty <input tabIndex={-1} autoComplete="off" value={honeypot} onChange={(e) => setHoneypot(e.target.value)} /></label>
             </div>
 
             {error && <p className="error-text">{error}</p>}

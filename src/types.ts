@@ -1,5 +1,7 @@
 export type Emotion = 'joyful' | 'heartfelt' | 'funny' | 'inspiring' | 'romantic'
 
+export type ThemePreset = 'classic-gold' | 'pastel-dream' | 'midnight-neon'
+
 export interface Palette {
   primary: string
   secondary: string
@@ -19,6 +21,14 @@ export interface MemoryFile {
   uploadedAt: string
 }
 
+export interface GuestbookEntry {
+  id: string
+  name: string
+  message: string
+  photo?: string
+  createdAt: string
+}
+
 export interface WishLink {
   id: string
   slug: string
@@ -28,8 +38,10 @@ export interface WishLink {
   message: string
   cakeColor: string
   theme: string
+  themePreset?: ThemePreset
   memories: MemoryFile[]
   createdAt: string
+  expiresAt?: string
 }
 
 export interface SessionUser {
