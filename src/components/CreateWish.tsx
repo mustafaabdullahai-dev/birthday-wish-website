@@ -1,20 +1,21 @@
 import { useState, useCallback } from 'react'
 import type { Emotion, MemoryFile, ThemePreset } from '../types'
 import { useStore } from '../store/useStore'
-import { saveWishLink, readWishLinks } from '../store/useStore'
+import { saveWishLink } from '../store/useStore'
 import {
-  paletteForName,
   uid,
   generateWish,
   todayISO,
-  initials,
   downscaleImage,
   THEME_PRESETS,
   FAMILY_ROLES,
   ROLE_PAIR_SUGGESTIONS,
   roleLabel,
+  daysInMonth,
+  buildBirthdayISO,
+  formatBirthday,
 } from '../utils/helpers'
-import { exportCardPoster, exportCardGif, exportCardVideo, downloadResult } from '../utils/cardExporter'
+import { exportCardPoster, exportCardGif, exportCardVideo, downloadResult, renderCardThumbnail } from '../utils/cardExporter'
 import { audio } from '../utils/audioEngine'
 import { QrCode, qrDownloadName } from './QrCode'
 
@@ -28,6 +29,26 @@ const EMOTIONS: { id: Emotion; label: string; icon: string }[] = [
 
 const CAKE_COLORS = ['#FF9E9E', '#9ED8FF', '#FFE38F', '#B7E39E', '#D9B0FF', '#FFB6D9', '#8FF0E0']
 
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+function yearOptions(): number[] {
+  const now = new Date().getFullYear()
+  const out: number[] = []
+  for (let y = now; y >= now - 120; y -= 1) out.push(y)
+  return out
+}
+
+const YEAR_OPTIONS = yearOptions()
+
+const SHARE_APPS: { id: string; label: string; icon: string; direct: boolean }[] = [
+  { id: 'whatsapp', label: 'WhatsApp', icon: '✆', direct: true },
+  { id: 'facebook', label: 'Facebook', icon: 'f', direct: true },
+  { id: 'x', label: 'X', icon: '𝕏', direct: true },
+  { id: 'instagram', label: 'Instagram', icon: 'ig', direct: false },
+  { id: 'snapchat', label: 'Snapchat', icon: '👻', direct: false },
+  { id: 'imo', label: 'Imo', icon: 'im', direct: false },
+]
+
 const EXPIRE_OPTIONS: { id: string; label: string; ms: number | null }[] = [
   { id: '90d', label: 'Keep for 90 days', ms: 90 * 24 * 60 * 60 * 1000 },
   { id: '1y', label: 'Keep for 1 year', ms: 365 * 24 * 60 * 60 * 1000 },
@@ -35,6 +56,21 @@ const EXPIRE_OPTIONS: { id: string; label: string; ms: number | null }[] = [
 ]
 
 const THEME_PRESET_LIST = Object.entries(THEME_PRESETS) as [ThemePreset, (typeof THEME_PRESETS)[ThemePreset]][]
+
+const THEME_THUMBS = new Map<ThemePreset, string>()
+function themeThumb(id: ThemePreset): string {
+  const cached = THEME_THUMBS.get(id)
+  if (cached) return cached
+  const preset = THEME_PRESETS[id]
+  const data = renderCardThumbnail({
+    template: id,
+    forName: 'Sony',
+    fromName: 'With love',
+    message: preset.tagline,
+  })
+  THEME_THUMBS.set(id, data)
+  return data
+}
 
 const STEPS = [
   { label: 'Who', chapter: 'About' },
@@ -90,8 +126,10 @@ export function CreateWish() {
   const [fromName, setFromName] = useState('')
   const [fromRole, setFromRole] = useState('')
   const [toRole, setToRole] = useState('')
-  const [birthday, setBirthday] = useState('')
   const [birthdayKnown, setBirthdayKnown] = useState(true)
+  const [bdMonth, setBdMonth] = useState('')
+  const [bdDay, setBdDay] = useState('')
+  const [bdYear, setBdYear] = useState('')
   const [emotion, setEmotion] = useState<Emotion>('joyful')
   const [cakeColor, setCakeColor] = useState('#FF9E9E')
   const [themePreset, setThemePreset] = useState<ThemePreset>('classic-gold')
@@ -166,6 +204,25 @@ export function CreateWish() {
     })
   }, [])
 
+  const clampDay = (month: string, day: string, year: string): string => {
+    if (!month) return day
+    const max = daysInMonth(Number(month), year ? Number(year) : 2000)
+    if (Number(day) > max) return String(max)
+    return day
+  }
+
+  const handleMonth = (m: string) => {
+    setBdMonth(m)
+    setBdDay((d) => clampDay(m, d, bdYear))
+  }
+
+  const handleDay = (d: string) => setBdDay(d)
+
+  const handleYear = (y: string) => {
+    setBdYear(y)
+    setBdDay((d) => clampDay(bdMonth, d, y))
+  }
+
   const next = () => {
     if (step === 0 && !forName.trim()) {
       setError("Enter the birthday person's name")
@@ -215,7 +272,7 @@ export function CreateWish() {
       cakeColor,
       themePreset,
       expiresAt,
-      birthday: birthdayKnown ? birthday : undefined,
+      birthday: birthdayKnown ? buildBirthdayISO(bdMonth, bdDay, bdYear) : undefined,
       birthdayKnown,
       memories: memories.map((m) =>
         m.type === 'video' && m.dataUrl?.startsWith('blob:') ? { ...m, dataUrl: undefined } : m,
@@ -247,6 +304,33 @@ export function CreateWish() {
   }
 
   const [exportBusy, setExportBusy] = useState<string | null>(null)
+  const [copiedApp, setCopiedApp] = useState<string | null>(null)
+
+  const shareTo = useCallback(
+    async (id: string) => {
+      if (!link) return
+      const text = `🎂 A birthday celebration for ${forName} — join the party!`
+      const urls: Record<string, string> = {
+        whatsapp: `https://wa.me/?text=${encodeURIComponent(`${text} ${link}`)}`,
+        facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(link)}&quote=${encodeURIComponent(text)}`,
+        x: `https://twitter.com/intent/tweet?text=${encodeURIComponent(`${text} ${link}`)}`,
+      }
+      const direct = urls[id]
+      if (direct) {
+        audio.chime()
+        window.open(direct, '_blank', 'noopener,noreferrer')
+        return
+      }
+      try {
+        await navigator.clipboard?.writeText(link ?? '').catch(() => undefined)
+        setCopiedApp(id)
+        window.setTimeout(() => setCopiedApp(null), 2600)
+      } catch {
+        /* ignore */
+      }
+    },
+    [link, forName],
+  )
 
   const exportCard = async (kind: 'poster' | 'gif' | 'video') => {
     setExportBusy(kind)
@@ -258,10 +342,7 @@ export function CreateWish() {
       fromName: fromName.trim() || 'A secret admirer',
       fromRole: roleLabel(fromRole) || undefined,
       toRole: roleLabel(toRole) || undefined,
-      birthdayLabel:
-        birthdayKnown && birthday
-          ? new Date(birthday).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' })
-          : undefined,
+      birthdayLabel: birthdayKnown && bdMonth && bdDay ? formatBirthday(bdMonth, bdDay, bdYear, birthdayKnown) : undefined,
       message: message.trim() || generateWish(forName || 'friend', emotion),
       photo: firstImage ?? null,
     }
@@ -327,9 +408,7 @@ export function CreateWish() {
                             aria-expanded={themeMenu}
                             onClick={() => setThemeMenu((v) => !v)}
                           >
-                            <span className="cv2-theme-swatch" style={{ background: `linear-gradient(135deg, ${previewPalette.primary}, ${previewPalette.secondary})` }}>
-                              🎂
-                            </span>
+                            <span className="cv2-theme-swatch" style={{ backgroundImage: `url(${themeThumb(themePreset)})` }} />
                             <span className="cv2-theme-trigger-copy">
                               <strong>{THEME_PRESETS[themePreset].label}</strong>
                               <em>{THEME_PRESETS[themePreset].tagline}</em>
@@ -348,7 +427,13 @@ export function CreateWish() {
                                     setThemeMenu(false)
                                   }}
                                 >
-                                  <span className="cv2-theme-swatch" style={{ background: `linear-gradient(135deg, ${t.palette.primary}, ${t.palette.secondary})` }} />
+                                  <span
+                                    className="cv2-theme-swatch"
+                                    style={{
+                                      background: `linear-gradient(135deg, ${t.palette.primary}, ${t.palette.secondary})`,
+                                      backgroundImage: `url(${themeThumb(id)})`,
+                                    }}
+                                  />
                                   <span className="cv2-theme-trigger-copy">
                                     <strong>{t.label}</strong>
                                     <em>{t.tagline}</em>
@@ -390,13 +475,36 @@ export function CreateWish() {
 
                         <div className="cv2-fieldset wide cv2-birthday-field">
                           <span className="cv2-eyebrow cv2-birthday-label">Birthday Date</span>
-                          <input
-                            type="date"
-                            value={birthday}
-                            disabled={!birthdayKnown}
-                            onChange={(e) => setBirthday(e.target.value)}
-                            className="date-input"
-                          />
+                          <div className="cv2-date-selects">
+                            <select value={bdMonth} onChange={(e) => handleMonth(e.target.value)} aria-label="Birthday month">
+                              <option value="">Month</option>
+                              {MONTHS.map((m, i) => (
+                                <option key={m} value={i + 1}>
+                                  {m}
+                                </option>
+                              ))}
+                            </select>
+                            <select value={bdDay} onChange={(e) => handleDay(e.target.value)} aria-label="Birthday day">
+                              <option value="">Day</option>
+                              {Array.from({ length: bdMonth ? daysInMonth(Number(bdMonth), bdYear ? Number(bdYear) : 2000) : 31 }, (_, i) => i + 1).map((d) => (
+                                <option key={d} value={d}>
+                                  {d}
+                                </option>
+                              ))}
+                            </select>
+                            {birthdayKnown ? (
+                              <select value={bdYear} onChange={(e) => handleYear(e.target.value)} aria-label="Birthday year">
+                                <option value="">Year</option>
+                                {YEAR_OPTIONS.map((y) => (
+                                  <option key={y} value={y}>
+                                    {y}
+                                  </option>
+                                ))}
+                              </select>
+                            ) : (
+                              <span className="cv2-birthday-unknown-note">Year kept secret ✨</span>
+                            )}
+                          </div>
                           <div className="cv2-birthday-unknown-fields">
                             <button
                               type="button"
@@ -577,7 +685,7 @@ export function CreateWish() {
                           </div>
                           <div>
                             <dt>Birthday</dt>
-                            <dd>{birthdayKnown && birthday ? new Date(birthday).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' }) : 'Mystery year'}</dd>
+                            <dd>{bdMonth && bdDay ? formatBirthday(bdMonth, bdDay, bdYear, birthdayKnown) : 'Not set'}</dd>
                           </div>
                           <div>
                             <dt>Emotion</dt>
@@ -634,6 +742,31 @@ export function CreateWish() {
                         <QrCode value={link} />
                         <p className="qr-hint">Scan to open the celebration on any phone.</p>
                       </div>
+                      <div className="share-apps" style={{ ['--glow' as string]: previewPalette.primary }}>
+                        <span className="share-apps-label">Share on</span>
+                        <div className="share-apps-row">
+                          {SHARE_APPS.map((app) => (
+                            <button
+                              key={app.id}
+                              type="button"
+                              onClick={() => shareTo(app.id)}
+                              aria-label={`Share on ${app.label}`}
+                            >
+                              <b className="share-app-icon">{app.icon}</b>
+                              <em>{app.label}</em>
+                            </button>
+                          ))}
+                        </div>
+                        <p className="share-apps-note">
+                          {copiedApp ? (
+                            <>
+                              Link copied — paste it into {SHARE_APPS.find((a) => a.id === copiedApp)?.label}! ✅
+                            </>
+                          ) : (
+                            'Instagram, Snapchat & Imo don’t accept direct links — we copy it for you.'
+                          )}
+                        </p>
+                      </div>
                       <div className="share-actions">
                         <button className="btn-primary" style={{ ['--glow' as string]: previewPalette.primary }} onClick={share}>
                           📤 Share the link
@@ -659,15 +792,7 @@ export function CreateWish() {
                 </section>
               )}
 
-              {!link && (
-                <YourPreviousLinks
-                  onUse={(slug) => {
-                    audio.whoosh()
-                    useStore.getState().applyLink(slug)
-                    setScreen('celebration')
-                  }}
-                />
-              )}
+              {error && <p className="error-text">{error}</p>}
             </div>
           </section>
 
@@ -687,10 +812,10 @@ export function CreateWish() {
                       <div className="cv2-pc-head">
                         <span className="cv2-pc-emoji">🎂</span>
                         <h3>{forName || 'Birthday star'}</h3>
-                        {birthdayKnown && birthday ? (
-                          <p>{new Date(birthday).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+                        {bdMonth && bdDay ? (
+                          <p>{formatBirthday(bdMonth, bdDay, bdYear, birthdayKnown)}</p>
                         ) : (
-                          <p>Surprise us — the year is a mystery</p>
+                          <p>Add their birthday date</p>
                         )}
                         <small>
                           {fromRole ? `From your ${roleLabel(fromRole)} ${fromName.trim() || ''}`.trim() : `With love, from ${fromName.trim() || 'a secret admirer'}`}
@@ -760,27 +885,6 @@ export function CreateWish() {
           </div>
         </footer>
       </div>
-    </div>
-  )
-}
-
-function YourPreviousLinks({ onUse }: { onUse: (slug: string) => void }) {
-  const links = readWishLinks()
-  if (links.length === 0) return null
-  return (
-    <div className="prev-links">
-      <h4>Previously created links</h4>
-      {links.slice(0, 4).map((l) => (
-        <button key={l.id} type="button" className="prev-link" onClick={() => onUse(l.slug)}>
-          <span className="prev-avatar" style={{ background: paletteForName(l.forName).primary }}>
-            {initials(l.forName)}
-          </span>
-          <span className="prev-name">
-            For <strong>{l.forName}</strong> — by {l.fromName}
-          </span>
-          <span className="prev-go">open →</span>
-        </button>
-      ))}
     </div>
   )
 }

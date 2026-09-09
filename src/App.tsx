@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, useCallback, lazy, Suspense } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import type { MemoryFile } from './types'
+import type { MemoryFile, ThemePreset } from './types'
 import { useStore, isSessionValid, fetchWishLink } from './store/useStore'
 import { paletteForName, applyThemePreset } from './utils/helpers'
 import { LoginScreen } from './components/LoginScreen'
@@ -59,6 +59,9 @@ interface CelebrateCtx {
   message?: string
   fromName?: string
   fromRole?: string
+  themePreset?: ThemePreset
+  birthday?: string
+  birthdayKnown?: boolean
   memories?: MemoryFile[]
 }
 
@@ -138,6 +141,9 @@ export default function App() {
         message: themedFromLink.message,
         fromName: themedFromLink.fromName,
         fromRole: themedFromLink.fromRole,
+        themePreset: themedFromLink.themePreset,
+        birthday: themedFromLink.birthday,
+        birthdayKnown: themedFromLink.birthdayKnown,
         memories: themedFromLink.memories,
       }
     : celebrateCtx
@@ -153,6 +159,9 @@ export default function App() {
           cakeMessage={activeCtx.message}
           cakeFrom={activeCtx.fromName}
           cakeFromRole={activeCtx.fromRole}
+          cakeTemplate={activeCtx.themePreset}
+          cakeBirthday={activeCtx.birthday}
+          cakeBirthdayKnown={activeCtx.birthdayKnown}
           cakeMemories={activeCtx.memories}
         />
       </Suspense>

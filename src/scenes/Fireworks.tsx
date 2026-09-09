@@ -27,6 +27,10 @@ function makeRocketSet(): Rocket[] {
 
 const hueCache = new Map<number, THREE.Color>()
 
+function clampHue(h: number): number {
+  return h - Math.floor(h)
+}
+
 function hsl(r: number, g: number, b: number): THREE.Color {
   const key = r * 100000 + g * 100 + b
   let c = hueCache.get(key)
@@ -37,7 +41,7 @@ function hsl(r: number, g: number, b: number): THREE.Color {
   return c
 }
 
-export function Fireworks() {
+export function Fireworks({ baseHue = 0.11 }: { baseHue?: number }) {
   const rockets = useRef<Rocket[]>(makeRocketSet())
   const timer = useRef(0)
   const rocketMeshRef = useRef<THREE.InstancedMesh>(null)
@@ -89,7 +93,7 @@ export function Fireworks() {
       positions[idx * 3] = x
       positions[idx * 3 + 1] = y
       positions[idx * 3 + 2] = z
-      const hue = Math.random() < 0.55 ? 0.11 + Math.random() * 0.06 : Math.random()
+      const hue = Math.random() < 0.55 ? clampHue(baseHue + (Math.random() - 0.5) * 0.09) : Math.random()
       const c = hsl(hue, 0.9, 0.65)
       baseR[idx] = c.r
       baseG[idx] = c.g

@@ -1,4 +1,4 @@
-import type { Palette, Emotion, ThemePreset, CardArt, FamilyRoleId } from '../types'
+import type { Palette, Emotion, ThemePreset, CardArt, FamilyRoleId, CakeStyle, BalloonStyle } from '../types'
 
 export const PALETTES: Palette[] = [
   {
@@ -65,7 +65,10 @@ export function paletteForName(name: string): Palette {
   return PALETTES[hashName(name) % PALETTES.length]
 }
 
-export const THEME_PRESETS: Record<ThemePreset, { label: string; tagline: string; palette: Palette; cardArt: CardArt }> = {
+export const THEME_PRESETS: Record<
+  ThemePreset,
+  { label: string; tagline: string; palette: Palette; cardArt: CardArt; scene: { cake: CakeStyle; balloons: BalloonStyle; fireworksHue: number } }
+> = {
   'classic-gold': {
     label: 'Classic Gold',
     tagline: 'Gilded confetti & warm glow',
@@ -78,6 +81,7 @@ export const THEME_PRESETS: Record<ThemePreset, { label: string; tagline: string
       dark: '#120d28',
     },
     cardArt: 'confetti',
+    scene: { cake: 'classic', balloons: 'gold', fireworksHue: 0.11 },
   },
   'pastel-dream': {
     label: 'Pastel Dream',
@@ -91,6 +95,7 @@ export const THEME_PRESETS: Record<ThemePreset, { label: string; tagline: string
       dark: '#2a1f3d',
     },
     cardArt: 'balloons',
+    scene: { cake: 'tiered', balloons: 'pastel', fireworksHue: 0.85 },
   },
   'midnight-neon': {
     label: 'Midnight Neon',
@@ -104,6 +109,7 @@ export const THEME_PRESETS: Record<ThemePreset, { label: string; tagline: string
       dark: '#08081f',
     },
     cardArt: 'stars',
+    scene: { cake: 'square', balloons: 'neon', fireworksHue: 0.9 },
   },
   'rose-blush': {
     label: 'Rose Blush',
@@ -117,6 +123,7 @@ export const THEME_PRESETS: Record<ThemePreset, { label: string; tagline: string
       dark: '#260f1a',
     },
     cardArt: 'hearts',
+    scene: { cake: 'ring', balloons: 'classic', fireworksHue: 0.95 },
   },
   'emerald-veil': {
     label: 'Emerald Veil',
@@ -130,6 +137,7 @@ export const THEME_PRESETS: Record<ThemePreset, { label: string; tagline: string
       dark: '#071c17',
     },
     cardArt: 'sparkle',
+    scene: { cake: 'classic', balloons: 'silver', fireworksHue: 0.4 },
   },
   'sunset-amber': {
     label: 'Sunset Amber',
@@ -143,6 +151,7 @@ export const THEME_PRESETS: Record<ThemePreset, { label: string; tagline: string
       dark: '#1f0d07',
     },
     cardArt: 'rays',
+    scene: { cake: 'tiered', balloons: 'classic', fireworksHue: 0.06 },
   },
   'royal-berry': {
     label: 'Royal Berry',
@@ -156,6 +165,7 @@ export const THEME_PRESETS: Record<ThemePreset, { label: string; tagline: string
       dark: '#100525',
     },
     cardArt: 'fireworks',
+    scene: { cake: 'ring', balloons: 'neon', fireworksHue: 0.78 },
   },
   'ocean-breeze': {
     label: 'Ocean Breeze',
@@ -169,6 +179,7 @@ export const THEME_PRESETS: Record<ThemePreset, { label: string; tagline: string
       dark: '#06161f',
     },
     cardArt: 'waves',
+    scene: { cake: 'square', balloons: 'silver', fireworksHue: 0.56 },
   },
   'vintage-lace': {
     label: 'Vintage Lace',
@@ -182,6 +193,7 @@ export const THEME_PRESETS: Record<ThemePreset, { label: string; tagline: string
       dark: '#2b1810',
     },
     cardArt: 'flowers',
+    scene: { cake: 'tiered', balloons: 'pastel', fireworksHue: 0.76 },
   },
   'candy-pop': {
     label: 'Candy Pop',
@@ -195,6 +207,7 @@ export const THEME_PRESETS: Record<ThemePreset, { label: string; tagline: string
       dark: '#0e201a',
     },
     cardArt: 'dots',
+    scene: { cake: 'ring', balloons: 'neon', fireworksHue: 0.55 },
   },
 }
 
@@ -290,6 +303,63 @@ export function initials(name: string): string {
 
 export function todayISO(): string {
   return new Date().toISOString()
+}
+
+export function pad2(n: number): string {
+  return String(n).padStart(2, '0')
+}
+
+export function daysInMonth(month: number, year = 2000): number {
+  if (month < 1 || month > 12) return 31
+  return new Date(year, month, 0).getDate()
+}
+
+export function buildBirthdayISO(month: number | string, day: number | string, year: number | string): string | undefined {
+  const m = Number(month)
+  const d = Number(day)
+  if (!Number.isInteger(m) || !Number.isInteger(d) || m < 1 || m > 12 || d < 1) return undefined
+  const max = daysInMonth(m, year ? Number(year) : 2000)
+  if (d > max) return undefined
+  return `${year ? Number(year) : 2000}-${pad2(m)}-${pad2(d)}`
+}
+
+export function formatBirthday(month: number | string, day: number | string, year: number | string, known: boolean): string {
+  const m = Number(month)
+  const d = Number(day)
+  if (!Number.isInteger(m) || !Number.isInteger(d) || m < 1 || m > 12 || d < 1) {
+    return known ? '' : 'Date unknown'
+  }
+  const hasYear = known && Number(year) > 0
+  const date = new Date(hasYear ? Number(year) : 2000, m - 1, d)
+  const base = date.toLocaleDateString(undefined, hasYear ? { day: 'numeric', month: 'long', year: 'numeric' } : { day: 'numeric', month: 'long' })
+  return known && !hasYear ? `${base} · year unknown` : base
+}
+
+export interface BirthdayParts {
+  days: number
+  hours: number
+  mins: number
+  secs: number
+  isToday: boolean
+}
+
+export function timeUntilBirthday(birthdayISO: string | undefined, now = new Date()): BirthdayParts | null {
+  if (!birthdayISO) return null
+  const [, m, d] = birthdayISO.split('-').map(Number)
+  if (!Number.isInteger(m) || !Number.isInteger(d) || m < 1 || m > 12 || d < 1 || d > 31) return null
+  const isToday = now.getMonth() === m - 1 && now.getDate() === d
+  if (isToday) return { days: 0, hours: 0, mins: 0, secs: 0, isToday: true }
+  let target = new Date(now.getFullYear(), m - 1, d, 0, 0, 0, 0)
+  if (target.getTime() < now.getTime() - 10) target = new Date(now.getFullYear() + 1, m - 1, d, 0, 0, 0, 0)
+  let ms = target.getTime() - now.getTime()
+  if (ms < 0) ms = 0
+  return {
+    days: Math.floor(ms / 86_400_000),
+    hours: Math.floor((ms % 86_400_000) / 3_600_000),
+    mins: Math.floor((ms % 3_600_000) / 60_000),
+    secs: Math.floor((ms % 60_000) / 1_000),
+    isToday,
+  }
 }
 
 export function downscaleImage(file: File, maxDim = 1400, quality = 0.82): Promise<string> {

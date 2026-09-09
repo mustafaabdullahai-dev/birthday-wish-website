@@ -24,6 +24,9 @@ export type CardArt =
   | 'flowers'
   | 'dots'
 
+export type CakeStyle = 'classic' | 'tiered' | 'square' | 'ring'
+export type BalloonStyle = 'classic' | 'pastel' | 'neon' | 'gold' | 'silver'
+
 export const FAMILY_ROLE_IDS = [
   'father',
   'mother',

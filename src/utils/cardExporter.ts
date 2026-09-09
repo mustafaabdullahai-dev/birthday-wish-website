@@ -401,6 +401,20 @@ export interface ExportResult {
   filename: string
 }
 
+export function renderCardThumbnail(o: CardExportOptions, w = 150, h = 210): string {
+  const canvas = document.createElement('canvas')
+  canvas.width = Math.round(w)
+  canvas.height = Math.round(h)
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return ''
+  try {
+    drawCard(ctx, canvas.width, canvas.height, { ...o, width: canvas.width, height: canvas.height }, 0.4, null)
+  } catch {
+    return ''
+  }
+  return canvas.toDataURL('image/png')
+}
+
 export function cardFilename(base: string, ext: string): string {
   return `wishing-card-${slugify(base || 'birthday')}.${ext}`
 }

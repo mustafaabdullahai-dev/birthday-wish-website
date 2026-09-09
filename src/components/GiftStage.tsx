@@ -20,17 +20,16 @@ function GiftStage({ palette, memories, message, name, onContinue }: BoxProps) {
   const [opened, setOpened] = useState<number | null>(null)
   const [showGuestbook, setShowGuestbook] = useState(false)
   const linkSeed = useStore((s) => s.linkSeed)
-  const hasImages = memories.some((m) => m.type === 'image')
-  const hasText = memories.some((m) => m.type === 'text')
 
-  const boxes = useMemo(
-    () => [
-      { id: 0, label: hasImages ? 'Memories' : 'Images', icon: '📸', available: memories.length > 0 },
-      { id: 1, label: 'Messages', icon: '💬', available: hasText || true },
-      { id: 2, label: 'Surprise', icon: '🎉', always: true },
-    ],
-    [hasImages, hasText, memories.length],
-  )
+  const boxes = useMemo(() => {
+    const list: { id: number; label: string; icon: string; available: boolean; always?: boolean }[] = []
+    if (memories.length > 0) {
+      list.push({ id: 0, label: 'Memories', icon: '📸', available: true })
+    }
+    list.push({ id: 1, label: 'Messages', icon: '💬', available: true })
+    list.push({ id: 2, label: 'Surprise', icon: '🎉', available: true, always: true })
+    return list
+  }, [memories.length])
 
   const openBox = useCallback((id: number) => {
     audio.chime()
@@ -103,11 +102,7 @@ function GiftStage({ palette, memories, message, name, onContinue }: BoxProps) {
             onShut={() => closeBox(0)}
             palette={palette}
           >
-            {memories.length > 0 ? (
-              <MemoryGallery memories={memories} />
-            ) : (
-              <EmptyMemories palette={palette} />
-            )}
+            <MemoryGallery memories={memories} />
           </BoxModal>
         )}
         {opened === 1 && (
@@ -162,13 +157,23 @@ function BoxModal({
 
 function MemoryGallery({ memories }: { memories: MemoryFile[] }) {
   const [active, setActive] = useState<number | null>(null)
+  const [view, setView] = useState<'grid' | 'timeline'>('grid')
+  const media = memories.filter((m) => m.type !== 'text')
 
-  if (memories.length === 0) return null
+  if (media.length === 0) return null
   return (
     <>
-      <div className="memory-grid">
-        {memories.map((m, i) =>
-          m.type === 'text' ? null : (
+      <div className="memory-views">
+        <button type="button" className={view === 'grid' ? 'active' : ''} onClick={() => setView('grid')}>
+          ▦ Grid
+        </button>
+        <button type="button" className={view === 'timeline' ? 'active' : ''} onClick={() => setView('timeline')}>
+          🗂 Timeline
+        </button>
+      </div>
+      {view === 'grid' ? (
+        <div className="memory-grid">
+          {media.map((m, i) => (
             <motion.button
               key={m.id}
               className="memory-tile"
@@ -180,22 +185,51 @@ function MemoryGallery({ memories }: { memories: MemoryFile[] }) {
               ) : m.type === 'image' && m.dataUrl ? (
                 <img src={m.dataUrl} alt={m.caption || 'memory'} loading="lazy" />
               ) : (
-                <div className="memory-fallback">
-                  {m.caption || 'A beautiful memory'}
-                </div>
+                <div className="memory-fallback">{m.caption || 'A beautiful memory'}</div>
               )}
               {m.caption && <span className="memory-cap">{m.caption}</span>}
             </motion.button>
-          ),
-        )}
-      </div>
-      <AnimatePresence>
-        {active !== null && (
-          <Lightbox file={memories[active]} onClose={() => setActive(null)} />
-        )}
-      </AnimatePresence>
+          ))}
+        </div>
+      ) : (
+        <div className="memory-timeline">
+          {media.map((m, i) => (
+            <motion.button
+              key={m.id}
+              className="tl-item"
+              initial={{ opacity: 0, x: i % 2 === 0 ? -16 : 16 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true, amount: 0.4 }}
+              onClick={() => setActive(i)}
+            >
+              <span className="tl-dot" />
+              <div className="tl-media">
+                {m.type === 'video' && m.dataUrl ? (
+                  <video src={m.dataUrl} muted playsInline preload="metadata" />
+                ) : m.type === 'image' && m.dataUrl ? (
+                  <img src={m.dataUrl} alt={m.caption || 'memory'} loading="lazy" />
+                ) : (
+                  <div className="memory-fallback">{m.caption || ''}</div>
+                )}
+              </div>
+              <div className="tl-copy">
+                <strong>{m.caption || `Memory ${i + 1}`}</strong>
+                <span>{formatMemoryDate(m.uploadedAt)}</span>
+              </div>
+            </motion.button>
+          ))}
+        </div>
+      )}
+      <AnimatePresence>{active !== null && <Lightbox file={media[active]} onClose={() => setActive(null)} />}</AnimatePresence>
     </>
   )
+}
+
+function formatMemoryDate(iso: string): string {
+  if (!iso) return ''
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
 function Lightbox({ file, onClose }: { file: MemoryFile; onClose: () => void }) {
@@ -226,69 +260,66 @@ function Lightbox({ file, onClose }: { file: MemoryFile; onClose: () => void }) 
   )
 }
 
-function EmptyMemories({ palette }: { palette: Palette }) {
-  const [uploaded, setUploaded] = useState<MemoryFile[]>([])
-  const [dragOver, setDragOver] = useState(false)
-
-  const handleFiles = useCallback((files: FileList | null) => {
-    if (!files) return
-    Array.from(files)
-      .filter((f) => f.type.startsWith('image/'))
-      .slice(0, 8)
-      .forEach((f) => {
-        const reader = new FileReader()
-        reader.onload = () => {
-          setUploaded((prev) => {
-            const next: MemoryFile = {
-              id: `${Date.now()}${Math.random()}`,
-              type: 'image',
-              dataUrl: String(reader.result),
-              caption: f.name,
-              uploadedAt: new Date().toISOString(),
-            }
-            return [...prev, next]
-          })
-        }
-        reader.readAsDataURL(f)
-      })
-  }, [])
-
+function ReasonsCards({ palette }: { palette: Palette }) {
+  const reasons = [
+    { icon: '😊', title: 'Your smile', note: 'It turns any ordinary day into a good one.' },
+    { icon: '😂', title: 'Your laugh', note: 'The sound that makes everyone around you lighter.' },
+    { icon: '💛', title: 'Your kindness', note: 'You make people feel seen, and that is rare.' },
+    { icon: '🔥', title: 'Your courage', note: 'You keep going even when the road gets steep.' },
+    { icon: '💫', title: 'Your heart', note: 'The biggest reason — you are simply you.' },
+  ]
   return (
-    <div className="empty-mem">
-      {uploaded.length === 0 ? (
-        <>
-          <p className="empty-title">No memories have been uploaded for you yet</p>
-          <p className="empty-sub">
-            Share your wish link so friends can add photos & videos. You can also drop your own below!
-          </p>
-          <label
-            className={`dropzone ${dragOver ? 'over' : ''}`}
-            onDragOver={(e) => {
-              e.preventDefault()
-              setDragOver(true)
-            }}
-            onDragLeave={() => setDragOver(false)}
-            onDrop={(e) => {
-              e.preventDefault()
-              setDragOver(false)
-              handleFiles(e.dataTransfer.files)
-            }}
-            style={{ ['--glow' as string]: palette.primary }}
-          >
-            <input
-              type="file"
-              accept="image/*"
-              multiple
-              onChange={(e) => handleFiles(e.target.files)}
-              hidden
-            />
-            <span className="dz-icon">🖼️</span>
-            <span>Drag & drop photos here, or <em>click to browse</em></span>
-          </label>
-        </>
-      ) : (
-        <MemoryGallery memories={uploaded} />
-      )}
+    <div className="reasons-wrap" style={{ ['--glow' as string]: palette.primary }}>
+      <h4 className="reasons-title">Reasons we love you — tap to open</h4>
+      <div className="reasons-row">
+        {reasons.map((r) => (
+          <ReasonsFlipCard key={r.title} icon={r.icon} title={r.title} note={r.note} palette={palette} />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function ReasonsFlipCard({ icon, title, note, palette }: { icon: string; title: string; note: string; palette: Palette }) {
+  const [flipped, setFlipped] = useState(false)
+  return (
+    <button
+      type="button"
+      className={`reason-card ${flipped ? 'flipped' : ''}`}
+      onClick={() => {
+        audio.tick()
+        setFlipped((v) => !v)
+      }}
+      style={{ ['--glow' as string]: palette.primary }}
+    >
+      <span className="reason-face reason-front">
+        <b>{icon}</b>
+        <em>{title}</em>
+      </span>
+      <span className="reason-face reason-back">
+        <em>{note}</em>
+      </span>
+    </button>
+  )
+}
+
+function VideoReel({ videos }: { videos: MemoryFile[] }) {
+  if (videos.length === 0) return null
+  return (
+    <div className="video-reel">
+      <h4 className="reasons-title">🎬 Surprise video messages</h4>
+      <div className="video-reel-strip">
+        {videos.map((v) => (
+          <div className="video-reel-card" key={v.id}>
+            {v.dataUrl ? (
+              <video src={v.dataUrl} muted loop playsInline controls preload="metadata" />
+            ) : (
+              <div className="memory-fallback">🎬 {v.caption || 'Video message'}</div>
+            )}
+            {v.caption && <span className="video-reel-cap">{v.caption}</span>}
+          </div>
+        ))}
+      </div>
     </div>
   )
 }
@@ -324,6 +355,7 @@ function SurpriseView({
   memories: MemoryFile[]
 }) {
   const imgs = memories.filter((m) => m.type === 'image' && m.dataUrl).slice(0, 4)
+  const videos = memories.filter((m) => m.type === 'video')
   useEffect(() => {
     audio.fanfare()
   }, [])
@@ -331,6 +363,8 @@ function SurpriseView({
     <div className="surprise-view">
       <div className="surprise-confetti">🎊</div>
       <h4 style={{ color: palette.primary }}>It’s YOU, {name}!</h4>
+      <ReasonsCards palette={palette} />
+      <VideoReel videos={videos} />
       {imgs.length > 0 ? (
         <div className="collage">
           {imgs.map((img, i) => (
@@ -339,12 +373,12 @@ function SurpriseView({
             </div>
           ))}
         </div>
-      ) : (
+      ) : videos.length === 0 ? (
         <div className="surprise-card">
           <span>🕰️</span>
           <p>Every second of this celebration exists because you exist. That is the real surprise.</p>
         </div>
-      )}
+      ) : null}
       <p className="surprise-footer">Make this year unforgettable — the world is cheering for you.</p>
     </div>
   )

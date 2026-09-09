@@ -1,12 +1,14 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import type { Palette, MemoryFile } from '../types'
+import type { Palette, MemoryFile, ThemePreset } from '../types'
 import { useStore } from '../store/useStore'
 import { audio } from '../utils/audioEngine'
 import { CelebrationScene } from '../scenes/CelebrationScene'
 import { NameOverlay } from './NameOverlay'
 import { LetterModal } from './LetterModal'
 import { GiftStage } from './GiftStage'
+import { GiftUnbox } from './GiftUnbox'
+import { LoveMeter } from './LoveMeter'
 import { generateWish } from '../utils/helpers'
 import { useCanvasCapture } from '../hooks/useCanvasCapture'
 
@@ -17,15 +19,30 @@ interface Props {
   cakeMessage?: string
   cakeFrom?: string
   cakeFromRole?: string
+  cakeTemplate?: ThemePreset
+  cakeBirthday?: string
+  cakeBirthdayKnown?: boolean
   cakeMemories?: MemoryFile[]
 }
 
-export function CelebrateScreen({ name, palette, cakeColor, cakeMessage, cakeFrom, cakeFromRole, cakeMemories }: Props) {
+export function CelebrateScreen({
+  name,
+  palette,
+  cakeColor,
+  cakeMessage,
+  cakeFrom,
+  cakeFromRole,
+  cakeTemplate,
+  cakeBirthday,
+  cakeBirthdayKnown,
+  cakeMemories,
+}: Props) {
   const setStage = useStore((s) => s.setStage)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const [stage, setLocalStage] = useState<'intro' | 'cake' | 'letter' | 'gifts'>('intro')
   const [candlesOut, setCandlesOut] = useState(false)
   const [cakeEmerging, setCakeEmerging] = useState(false)
+  const [giftOpened, setGiftOpened] = useState(false)
   const [showLetter, setShowLetter] = useState(false)
   const [showGifts, setShowGifts] = useState(false)
 
@@ -36,15 +53,22 @@ export function CelebrateScreen({ name, palette, cakeColor, cakeMessage, cakeFro
 
   useEffect(() => {
     setStage('intro')
-    const t1 = setTimeout(() => setCakeEmerging(true), 1600)
-    const t2 = setTimeout(() => setLocalStage('cake'), 4200)
+    setGiftOpened(false)
     audio.startMusic()
     return () => {
-      clearTimeout(t1)
-      clearTimeout(t2)
+      setGiftOpened(false)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [name])
+
+  const handleOpenGift = useCallback(() => {
+    setGiftOpened(true)
+    setCakeEmerging(true)
+    setTimeout(() => {
+      setLocalStage('cake')
+      setStage('cake')
+    }, 700)
+  }, [setStage])
 
   const handleBlow = useCallback(() => {
     setCandlesOut(true)
@@ -67,10 +91,7 @@ export function CelebrateScreen({ name, palette, cakeColor, cakeMessage, cakeFro
     setShowLetter(false)
     setShowGifts(false)
     setCakeEmerging(false)
-    setTimeout(() => {
-      setCakeEmerging(true)
-      setLocalStage('cake')
-    }, 1600)
+    setGiftOpened(false)
     audio.startMusic()
   }, [setStage])
 
@@ -86,9 +107,24 @@ export function CelebrateScreen({ name, palette, cakeColor, cakeMessage, cakeFro
         cakeEmerging={cakeEmerging}
         onBlow={handleBlow}
         cakeFrom={cakeFrom}
+        template={cakeTemplate}
         activePhase={stage === 'letter' || stage === 'gifts' ? 'idle' : 'active'}
         canvasRef={canvasRef}
       />
+
+      <AnimatePresence>
+        {stage === 'intro' && !giftOpened && (
+          <GiftUnbox
+            key="gift-unbox"
+            name={name}
+            palette={palette}
+            birthday={cakeBirthday}
+            birthdayKnown={cakeBirthdayKnown}
+            cakeFrom={cakeFrom}
+            onOpen={handleOpenGift}
+          />
+        )}
+      </AnimatePresence>
 
       {stage !== 'gifts' && <NameOverlay name={name} palette={palette} />}
 
@@ -119,6 +155,8 @@ export function CelebrateScreen({ name, palette, cakeColor, cakeMessage, cakeFro
 
       <CelebrateControls onRestart={restage} canvasRef={canvasRef} />
 
+      <LoveMeter palette={palette} active={stage !== 'intro'} />
+
       <AnimatePresence>
         {showLetter && (
           <LetterModal
@@ -140,10 +178,7 @@ export function CelebrateScreen({ name, palette, cakeColor, cakeMessage, cakeFro
               memories={cakeMemories ?? []}
               message={message}
               name={name}
-              onContinue={() => {
-                setCakeEmerging(true)
-                restage()
-              }}
+              onContinue={restage}
             />
           </motion.div>
         )}

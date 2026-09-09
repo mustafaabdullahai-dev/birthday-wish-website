@@ -14,6 +14,10 @@ import {
   ROLE_PAIR_SUGGESTIONS,
   roleLabel,
   relationPhrase,
+  daysInMonth,
+  buildBirthdayISO,
+  formatBirthday,
+  timeUntilBirthday,
 } from '../helpers'
 
 describe('helpers', () => {
@@ -157,6 +161,48 @@ describe('helpers', () => {
     it('surpriseFact mentions the name', () => {
       const fact = surpriseFact('Momo')
       expect(fact).toContain('"Momo"')
+    })
+  })
+
+  describe('birthday helpers', () => {
+    it('daysInMonth covers leap Feb and 30-day months', () => {
+      expect(daysInMonth(2, 2000)).toBe(29)
+      expect(daysInMonth(2, 2001)).toBe(28)
+      expect(daysInMonth(4, 2001)).toBe(30)
+      expect(daysInMonth(1, 2001)).toBe(31)
+    })
+
+    it('buildBirthdayISO zero-pads and refuses invalid days', () => {
+      expect(buildBirthdayISO(3, 5, 2005)).toBe('2005-03-05')
+      expect(buildBirthdayISO(12, 31, 1990)).toBe('1990-12-31')
+      expect(buildBirthdayISO(2, 30, 2001)).toBeUndefined()
+      expect(buildBirthdayISO(13, 1, 2000)).toBeUndefined()
+    })
+
+    it('buildBirthdayISO uses leak-safe 2000 when year is unknown', () => {
+      expect(buildBirthdayISO(2, 29, '')).toBe('2000-02-29')
+    })
+
+    it('formatBirthday renders with and without a year', () => {
+      expect(formatBirthday(7, 4, 2005, true)).toMatch(/2005/)
+      expect(formatBirthday(7, 4, '', true)).toContain('year unknown')
+      expect(formatBirthday('', '', '', false)).toContain('unknown')
+    })
+
+    it('timeUntilBirthday counts down toward the next occurrence', () => {
+      const now = new Date(2026, 4, 15, 0, 0, 0)
+      const parts = timeUntilBirthday('2005-05-20', now)
+      expect(parts).not.toBeNull()
+      expect(parts!.days).toBe(5)
+      expect(parts!.hours).toBe(0)
+      expect(parts!.isToday).toBe(false)
+
+      const today = timeUntilBirthday('2005-05-15', now)
+      expect(today!.isToday).toBe(true)
+      expect(today!.days).toBe(0)
+
+      const past = timeUntilBirthday('2005-04-20', now)
+      expect(past!.days).toBeGreaterThan(300)
     })
   })
 })

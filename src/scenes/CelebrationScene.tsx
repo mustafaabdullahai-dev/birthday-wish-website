@@ -1,7 +1,8 @@
 import { Suspense, useRef, useMemo, useEffect } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
-import type { Palette } from '../types'
+import type { Palette, ThemePreset } from '../types'
+import { THEME_PRESETS } from '../utils/helpers'
 import { Fireworks } from './Fireworks'
 import { Balloons } from './Balloons'
 import { Confetti } from './Confetti'
@@ -17,6 +18,7 @@ interface SceneProps {
   cakeEmerging: boolean
   onBlow: () => void
   cakeFrom?: string
+  template?: ThemePreset
   activePhase?: 'idle' | 'active'
   canvasRef?: React.MutableRefObject<HTMLCanvasElement | null>
 }
@@ -100,11 +102,15 @@ export function CelebrationScene({
   cakeEmerging,
   onBlow,
   cakeFrom,
+  template,
   activePhase = 'active',
   canvasRef,
 }: SceneProps) {
   const { dprMax, isLowEnd } = useMemo(() => getQualityTier(), [])
   const balloonCount = isLowEnd ? 6 : 12
+  const sceneDesign = template
+    ? THEME_PRESETS[template].scene
+    : ({ cake: 'classic', balloons: 'classic', fireworksHue: 0.11 } as const)
   const canvas = (
     <Canvas
       shadows={!isLowEnd}
@@ -126,8 +132,8 @@ export function CelebrationScene({
         <Rig />
         <StageLights />
         <Ground />
-        <Fireworks />
-        <Balloons count={balloonCount} />
+        <Fireworks baseHue={sceneDesign.fireworksHue} />
+        <Balloons count={balloonCount} style={sceneDesign.balloons} />
         <Confetti palette={palette} />
         <Cake
           name={name}
@@ -136,6 +142,7 @@ export function CelebrationScene({
           candlesOut={candlesOut}
           onBlow={onBlow}
           emerging={cakeEmerging}
+          style={sceneDesign.cake}
         />
       </Suspense>
     </Canvas>

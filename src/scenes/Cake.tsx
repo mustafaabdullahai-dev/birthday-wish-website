@@ -1,7 +1,7 @@
 import { useRef, useMemo } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
-import type { Palette } from '../types'
+import type { Palette, CakeStyle } from '../types'
 import { audio } from '../utils/audioEngine'
 
 interface CakeProps {
@@ -11,6 +11,7 @@ interface CakeProps {
   candlesOut: boolean
   onBlow: () => void
   emerging: boolean
+  style?: CakeStyle
 }
 
 function makeIcingTexture(name: string, color: string): THREE.CanvasTexture {
@@ -60,12 +61,95 @@ function makeIcingTexture(name: string, color: string): THREE.CanvasTexture {
 const FLAME_COLORS = ['#FFD700', '#FFA500', '#FF6B35', '#FFD700', '#FFB347', '#FFA500']
 const SPRINKLE_COLORS = ['#FF6B6B', '#FFD93D', '#4ECDC4', '#9B5DE5', '#F15BB5']
 
-export function Cake({ name, palette, cakeColor, candlesOut, onBlow, emerging }: CakeProps) {
+interface TierSpec {
+  kind: 'cyl' | 'box'
+  a: number
+  y: number
+  h: number
+  flat?: boolean
+}
+
+interface RimSpec {
+  kind: 'torus' | 'cyl' | 'boxLip'
+  a: number
+  y: number
+  h?: number
+  flat?: boolean
+}
+
+interface CakeLayout {
+  tiers: TierSpec[]
+  rims: RimSpec[]
+  sprinkles: { y: number; radius: number }
+  candles: { y: number; radius: number }
+  name: { x: number; y: number; z: number; rotX: number; size: [number, number] }
+  centerCake?: { y: number; r: number }
+}
+
+function cakeLayout(style: CakeStyle): CakeLayout {
+  switch (style) {
+    case 'tiered':
+      return {
+        tiers: [
+          { kind: 'cyl', a: 3.5, y: -1.55, h: 1.15 },
+          { kind: 'cyl', a: 2.6, y: -0.45, h: 1.05 },
+          { kind: 'cyl', a: 1.8, y: 0.6, h: 0.95 },
+        ],
+        rims: [{ kind: 'torus', a: 1.8, y: 1.08 }],
+        sprinkles: { y: 1.32, radius: 0.9 },
+        candles: { y: 1.12, radius: 0.95 },
+        name: { x: 0, y: -0.45, z: 2.72, rotX: 0, size: [5.0, 2.1] },
+      }
+    case 'square':
+      return {
+        tiers: [
+          { kind: 'box', a: 3.7, y: -1.0, h: 1.7 },
+          { kind: 'box', a: 2.5, y: 0.5, h: 1.3 },
+        ],
+        rims: [
+          { kind: 'boxLip', a: 2.7, y: 1.15, h: 0.12 },
+          { kind: 'boxLip', a: 3.9, y: -0.12, h: 0.12 },
+        ],
+        sprinkles: { y: 1.4, radius: 0.75 },
+        candles: { y: 1.26, radius: 0.85 },
+        name: { x: 0, y: 0.5, z: 1.28, rotX: 0, size: [4.5, 1.9] },
+      }
+    case 'ring':
+      return {
+        tiers: [{ kind: 'box', a: 0.001, y: 0, h: 0.001 }],
+        rims: [],
+        sprinkles: { y: -0.35, radius: 2.0 },
+        candles: { y: -0.42, radius: 2.0 },
+        name: { x: 0, y: -1.3, z: 3.1, rotX: 0, size: [5.0, 2.0] },
+        centerCake: { y: -1.5, r: 2.2 },
+      }
+    case 'classic':
+    default:
+      return {
+        tiers: [
+          { kind: 'cyl', a: 3.2, y: -0.75, h: 2.4 },
+          { kind: 'cyl', a: 2.1, y: 1.3, h: 1.6 },
+        ],
+        rims: [
+          { kind: 'torus', a: 3.2, y: 0.55 },
+          { kind: 'cyl', a: 2.35, y: 2.1, h: 0.3, flat: true },
+          { kind: 'torus', a: 2.35, y: 2.24 },
+        ],
+        sprinkles: { y: 2.52, radius: 1.3 },
+        candles: { y: 2.28, radius: 1.35 },
+        name: { x: 0, y: 1.15, z: 2.04, rotX: Math.PI, size: [5.4, 2.2] },
+      }
+  }
+}
+
+export function Cake({ name, palette, cakeColor, candlesOut, onBlow, emerging, style = 'classic' }: CakeProps) {
   const group = useRef<THREE.Group>(null)
   const candleGlow = useRef<THREE.PointLight>(null)
   const smokeRef = useRef<THREE.Points>(null)
   const emergence = useRef(emerging ? -7 : 0)
   const atTarget = useRef(!emerging)
+
+  const layout = useMemo(() => cakeLayout(style), [style])
 
   const smokeGeometry = useMemo(() => {
     const smokeCount = 240
@@ -146,45 +230,56 @@ export function Cake({ name, palette, cakeColor, candlesOut, onBlow, emerging }:
 
   return (
     <group ref={group} position={[0, 0, 0]} onClick={handleCakeClick}>
-      {/* base plate */}
       <mesh position={[0, -2.45, 0]} receiveShadow>
         <cylinderGeometry args={[4.2, 4.5, 0.5, 48]} />
         <meshStandardMaterial color="#E8D9F0" roughness={0.6} />
       </mesh>
 
-      {/* bottom tier */}
-      <mesh position={[0, -0.75, 0]} castShadow>
-        <cylinderGeometry args={[3.2, 3.2, 2.4, 48]} />
-        <meshStandardMaterial color={cakeColor} roughness={0.55} />
-      </mesh>
-      <mesh position={[0, 0.55, 0]} castShadow>
-        <torusGeometry args={[3.2, 0.18, 12, 48]} />
-        <meshStandardMaterial color="#fdeff7" roughness={0.45} />
-      </mesh>
+      {style === 'ring' && layout.centerCake && (
+        <mesh position={[0, layout.centerCake.y, 0]} rotation={[Math.PI / 2, 0, 0]}>
+          <torusGeometry args={[layout.centerCake.r, 0.62, 24, 64]} />
+          <meshStandardMaterial color={cakeColor} roughness={0.5} />
+        </mesh>
+      )}
 
-      {/* top tier */}
-      <mesh position={[0, 1.3, 0]} castShadow>
-        <cylinderGeometry args={[2.1, 2.1, 1.6, 48]} />
-        <meshStandardMaterial color={cakeColor} roughness={0.55} />
-      </mesh>
-      <mesh position={[0, 2.1, 0]} rotation={[Math.PI / 2, 0, 0]}>
-        <cylinderGeometry args={[2.35, 2.35, 0.3, 48]} />
-        <meshStandardMaterial color="#fdeff7" roughness={0.45} />
-      </mesh>
+      {layout.tiers
+        .filter((t) => t.a > 0.01)
+        .map((t, i) => (
+          <mesh key={`tier${i}`} position={[0, t.y, 0]} castShadow>
+            {t.kind === 'box' ? (
+              <boxGeometry args={[t.a, t.h, t.a]} />
+            ) : (
+              <cylinderGeometry args={[t.a, t.a, t.h, 48]} />
+            )}
+            <meshStandardMaterial color={cakeColor} roughness={0.55} />
+          </mesh>
+        ))}
 
-      {/* frosted rim */}
-      <mesh position={[0, 2.24, 0]} rotation={[Math.PI / 2, 0, 0]}>
-        <torusGeometry args={[2.35, 0.14, 12, 48]} />
-        <meshStandardMaterial color="#fff3f9" roughness={0.4} />
-      </mesh>
+      {layout.rims.map((r, i) =>
+        r.kind === 'torus' ? (
+          <mesh key={`rim${i}`} position={[0, r.y, 0]} castShadow>
+            <torusGeometry args={[r.a, 0.14, 12, 48]} />
+            <meshStandardMaterial color="#fdeff7" roughness={0.45} />
+          </mesh>
+        ) : r.kind === 'boxLip' ? (
+          <mesh key={`rim${i}`} position={[0, r.y, 0]} castShadow>
+            <boxGeometry args={[r.a, r.h ?? 0.12, r.a]} />
+            <meshStandardMaterial color="#fdeff7" roughness={0.45} />
+          </mesh>
+        ) : (
+          <mesh key={`rim${i}`} position={[0, r.y, 0]} rotation={[Math.PI / 2, 0, 0]}>
+            <cylinderGeometry args={[r.a, r.a, r.h ?? 0.3, 48]} />
+            <meshStandardMaterial color="#fdeff7" roughness={0.45} />
+          </mesh>
+        ),
+      )}
 
-      {/* sprinkles */}
       {Array.from({ length: 24 }, (_, i) => {
         const angle = (i / 24) * Math.PI * 2
         return (
           <mesh
             key={i}
-            position={[Math.cos(angle) * 1.3, 2.52, Math.sin(angle) * 1.3]}
+            position={[Math.cos(angle) * layout.sprinkles.radius, layout.sprinkles.y, Math.sin(angle) * layout.sprinkles.radius]}
             rotation={[Math.random(), Math.random(), Math.random()]}
           >
             <cylinderGeometry args={[0.045, 0.045, 0.2, 6]} />
@@ -193,55 +288,29 @@ export function Cake({ name, palette, cakeColor, candlesOut, onBlow, emerging }:
         )
       })}
 
-      {/* name icing on the front */}
-      <mesh position={[0, 1.15, 2.04]} rotation={[0, Math.PI, 0]}>
-        <planeGeometry args={[5.4, 2.2]} />
+      <mesh position={[layout.name.x, layout.name.y, layout.name.z]} rotation={[layout.name.rotX, Math.PI, 0]}>
+        <planeGeometry args={layout.name.size} />
         <meshBasicMaterial map={icingTexture} transparent depthWrite={false} />
       </mesh>
 
-      {/* candles */}
       {Array.from({ length: candleCount }, (_, i) => (
-        <Candle key={i} index={i} total={candleCount} lit={!candlesOut} />
+        <Candle key={i} index={i} total={candleCount} lit={!candlesOut} radius={layout.candles.radius} y={layout.candles.y} />
       ))}
 
-      {/* candle glow light */}
-      <pointLight
-        ref={candleGlow}
-        position={[0, 3.4, 0]}
-        color="#FFB347"
-        distance={14}
-        intensity={candlesOut ? 0 : 1.6}
-      />
+      <pointLight ref={candleGlow} position={[0, 3.4, 0]} color="#FFB347" distance={14} intensity={candlesOut ? 0 : 1.6} />
 
-      {/* smoke particles */}
       <points ref={smokeRef} frustumCulled={false}>
         <primitive object={smokeGeometry} attach="geometry" />
-        <pointsMaterial
-          size={0.001}
-          color="#e8e8e8"
-          transparent
-          opacity={0.9}
-          sizeAttenuation
-          depthWrite={false}
-        />
+        <pointsMaterial size={0.001} color="#e8e8e8" transparent opacity={0.9} sizeAttenuation depthWrite={false} />
       </points>
     </group>
   )
 }
 
-function Candle({
-  index,
-  total,
-  lit,
-}: {
-  index: number
-  total: number
-  lit: boolean
-}) {
+function Candle({ index, total, lit, radius, y }: { index: number; total: number; lit: boolean; radius: number; y: number }) {
   const flame = useRef<THREE.Mesh>(null)
 
   const angle = (index / total) * Math.PI * 2 - Math.PI / 2
-  const radius = 1.35
   const x = Math.cos(angle) * radius
   const z = Math.sin(angle) * radius
   const hue = FLAME_COLORS[index % FLAME_COLORS.length]
@@ -259,7 +328,7 @@ function Candle({
   })
 
   return (
-    <group position={[x, 2.28, z]} rotation={[0, -angle + Math.PI / 2, 0]}>
+    <group position={[x, y, z]} rotation={[0, -angle + Math.PI / 2, 0]}>
       <mesh castShadow>
         <cylinderGeometry args={[0.09, 0.09, 0.85, 12]} />
         <meshStandardMaterial

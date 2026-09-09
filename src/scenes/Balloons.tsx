@@ -1,6 +1,7 @@
 import { useRef, useMemo, useCallback, useState } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
+import type { BalloonStyle } from '../types'
 import { audio } from '../utils/audioEngine'
 
 interface BalloonData {
@@ -13,9 +14,20 @@ interface BalloonData {
   color: string
 }
 
-const BALLOON_COLORS = ['#FF6B6B', '#4ECDC4', '#FFD93D', '#FF9F1C', '#9B5DE5', '#F15BB5', '#00BBF9', '#00F5D4']
+const BALLOON_SETS: Record<BalloonStyle, string[]> = {
+  classic: ['#FF6B6B', '#4ECDC4', '#FFD93D', '#FF9F1C', '#9B5DE5', '#F15BB5', '#00BBF9', '#00F5D4'],
+  pastel: ['#FFC2D1', '#B8E0D2', '#F7E7CE', '#CBAACB', '#FADADD', '#A2D2FF', '#FDE2E4', '#DDB9A3'],
+  neon: ['#FF1493', '#00FFFF', '#39FF14', '#FDFF00', '#FF7500', '#B026FF', '#7DF9FF', '#FF3B30'],
+  gold: ['#FFD700', '#FFB347', '#FFC300', '#E5B80B', '#F9E076', '#D4AF37', '#FFE066', '#F3B431'],
+  silver: ['#B8E0D2', '#98D0C4', '#E0F7FA', '#A8E6CF', '#7FB6A8', '#D3F8FF', '#91C9E8', '#C4E6F5'],
+}
 
-function makeBalloon(i: number): BalloonData {
+function ColorFor(style: BalloonStyle, i: number): string {
+  const set = BALLOON_SETS[style] ?? BALLOON_SETS.classic
+  return set[i % set.length]
+}
+
+function makeBalloon(i: number, style: BalloonStyle): BalloonData {
   return {
     id: i,
     x: (Math.random() - 0.5) * 26,
@@ -23,7 +35,7 @@ function makeBalloon(i: number): BalloonData {
     amplitude: 0.8 + Math.random() * 1.4,
     phase: Math.random() * Math.PI * 2,
     scale: 0.7 + Math.random() * 0.7,
-    color: BALLOON_COLORS[i % BALLOON_COLORS.length],
+    color: ColorFor(style, i),
   }
 }
 
@@ -115,11 +127,11 @@ function PopBurst({ position, color }: { position: [number, number, number]; col
   )
 }
 
-export function Balloons({ count = 12 }: { count?: number }) {
+export function Balloons({ count = 12, style = 'classic' }: { count?: number; style?: BalloonStyle }) {
   return (
     <group>
       {Array.from({ length: count }, (_, i) => (
-        <Balloon key={i} data={makeBalloon(i)} />
+        <Balloon key={i} data={makeBalloon(i, style)} />
       ))}
     </group>
   )
