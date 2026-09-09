@@ -1,0 +1,54 @@
+# Netlify build + deploy configuration
+# Highlights: hashed assets are aggressively cached, index.html is never cached,
+# and the SPA fallback rule is intentionally commented out to avoid masking
+# missing deployments. To enable clean URLs uncomment the last rule.
+
+[build]
+  command = "npm run build"
+  publish = "dist"
+  functions = "netlify/functions"
+
+[[headers]]
+  # Hashed asset files (Vite appends content hash) — cache forever
+  for = "/assets/*"
+    [headers.values]
+      Cache-Control = "public, max-age=31536000, immutable"
+      X-Content-Type-Options = "nosniff"
+      Referrer-Policy = "strict-origin-when-cross-origin"
+
+[[headers]]
+  # Never cache the HTML shell so new deploys are picked up instantly
+  for = "/"
+    [headers.values]
+      Cache-Control = "no-cache, no-store, must-revalidate"
+      X-Content-Type-Options = "nosniff"
+      Referrer-Policy = "strict-origin-when-cross-origin"
+      Permissions-Policy = "camera=(), microphone=(), geolocation=()"
+      X-Frame-Options = "SAMEORIGIN"
+      Content-Security-Policy = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob:; connect-src 'self'; media-src 'self' blob:; worker-src 'self' blob:; frame-ancestors 'self'; base-uri 'self'"
+
+[[headers]]
+  # Service worker must always be revalidated so updates propagate
+  for = "/sw.js"
+    [headers.values]
+      Cache-Control = "no-cache"
+      X-Content-Type-Options = "nosniff"
+
+[[headers]]
+  for = "/manifest.json"
+    [headers.values]
+      Cache-Control = "public, max-age=86400"
+      X-Content-Type-Options = "nosniff"
+
+# SPA fallback: the app uses hash-based routing (#/celebrate/slug) so this is not
+# needed today. Uncomment only if the routing ever switches to the History API.
+# [[redirects]]
+#   from = "/*"
+#   to = "/index.html"
+#   status = 200
+
+# Keep-stale content available briefly during a redeploy to avoid 404 flashes.
+[[redirects]]
+  from = "/assets/*"
+  to = "/assets/:splat"
+  status = 200

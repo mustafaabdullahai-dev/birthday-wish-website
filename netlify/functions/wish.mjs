@@ -2,10 +2,10 @@ import { getStore } from '@netlify/blobs'
 
 const store = getStore({ name: 'wishes' })
 
-const MAX_WISH_BYTES = 300_000
-const MAX_MEMORIES = 25
-const MAX_GUESTBOOK = 50
-const MAX_RATE_PER_HOUR = 5
+const MAX_WISH_BYTES = Number(process.env.CELEBRATE_MAX_WISH_BYTES) || 300_000
+const MAX_MEMORIES = Number(process.env.CELEBRATE_MAX_MEMORIES) || 25
+const MAX_GUESTBOOK = Number(process.env.CELEBRATE_MAX_GUESTBOOK) || 50
+const MAX_RATE_PER_HOUR = Number(process.env.CELEBRATE_MAX_WRITES_PER_HOUR) || 5
 
 const rateMap = new Map()
 
