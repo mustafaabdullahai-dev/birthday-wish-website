@@ -40,6 +40,8 @@ function hsl(r: number, g: number, b: number): THREE.Color {
 export function Fireworks() {
   const rockets = useRef<Rocket[]>(makeRocketSet())
   const timer = useRef(0)
+  const rocketMeshRef = useRef<THREE.InstancedMesh>(null)
+  const rocketDummy = useMemo(() => new THREE.Object3D(), [])
 
   const geometry = useMemo(() => {
     const positions = new Float32Array(SPARK_COUNT * 3)
@@ -116,6 +118,14 @@ export function Fireworks() {
       }
     })
 
+    rockets.current.forEach((rkt, i) => {
+      if (rkt.active) rocketDummy.position.set(rkt.x, rkt.y, rkt.z)
+      else rocketDummy.position.set(0, -20, -4)
+      rocketDummy.updateMatrix()
+      rocketMeshRef.current?.setMatrixAt(i, rocketDummy.matrix)
+    })
+    if (rocketMeshRef.current) rocketMeshRef.current.instanceMatrix.needsUpdate = true
+
     const positions = geometry.attributes.position.array as Float32Array
     const colors = geometry.attributes.color.array as Float32Array
     for (let i = 0; i < SPARK_COUNT; i += 1) {
@@ -141,9 +151,10 @@ export function Fireworks() {
 
   return (
     <group>
-      {rockets.current.map((r, i) => (
-        <RocketMesh key={i} rocket={r} />
-      ))}
+      <instancedMesh ref={rocketMeshRef} args={[undefined, undefined, MAX_ROCKETS]} frustumCulled={false}>
+        <sphereGeometry args={[0.2, 8, 8]} />
+        <meshBasicMaterial color="#ffffff" />
+      </instancedMesh>
       <points frustumCulled={false}>
         <primitive object={geometry} attach="geometry" />
         <pointsMaterial
@@ -156,21 +167,5 @@ export function Fireworks() {
         />
       </points>
     </group>
-  )
-}
-
-function RocketMesh({ rocket }: { rocket: Rocket }) {
-  const ref = useRef<THREE.Mesh>(null)
-  useFrame(() => {
-    if (ref.current) {
-      if (rocket.active) ref.current.position.set(rocket.x, rocket.y, rocket.z)
-      else ref.current.position.set(0, -20, -4)
-    }
-  })
-  return (
-    <mesh ref={ref} position={[0, -10, -2]}>
-      <sphereGeometry args={[0.2, 8, 8]} />
-      <meshBasicMaterial color="#ffffff" />
-    </mesh>
   )
 }

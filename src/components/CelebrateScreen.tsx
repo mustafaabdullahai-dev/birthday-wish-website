@@ -82,6 +82,7 @@ export function CelebrateScreen({ name, palette, cakeColor, cakeMessage, cakeFro
         candlesOut={candlesOut}
         cakeEmerging={cakeEmerging}
         onBlow={handleBlow}
+        activePhase={stage === 'letter' || stage === 'gifts' ? 'idle' : 'active'}
       />
 
       {stage !== 'gifts' && <NameOverlay name={name} palette={palette} />}

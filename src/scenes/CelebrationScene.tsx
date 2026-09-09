@@ -1,4 +1,4 @@
-import { Suspense, useRef } from 'react'
+import { Suspense, useRef, useMemo } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import type { Palette } from '../types'
@@ -14,6 +14,16 @@ interface SceneProps {
   candlesOut: boolean
   cakeEmerging: boolean
   onBlow: () => void
+  activePhase?: 'idle' | 'active'
+}
+
+function getQualityTier(): { dprMax: number; isLowEnd: boolean } {
+  const isMobile = /Mobi|Android/i.test(navigator.userAgent)
+  const cores = navigator.hardwareConcurrency ?? 4
+  if (cores <= 4 || isMobile) {
+    return { dprMax: 1.5, isLowEnd: true }
+  }
+  return { dprMax: 2, isLowEnd: false }
 }
 
 function Rig() {
@@ -65,12 +75,17 @@ export function CelebrationScene({
   candlesOut,
   cakeEmerging,
   onBlow,
+  activePhase = 'active',
 }: SceneProps) {
+  const { dprMax, isLowEnd } = useMemo(() => getQualityTier(), [])
+  const balloonCount = isLowEnd ? 6 : 12
+
   return (
     <Canvas
-      shadows
-      dpr={[1, 2]}
-      gl={{ antialias: true, alpha: true }}
+      shadows={!isLowEnd}
+      dpr={[1, dprMax]}
+      frameloop={activePhase === 'idle' ? 'demand' : 'always'}
+      gl={{ antialias: !isLowEnd, alpha: true }}
       camera={{ position: [0, 1.6, 14], fov: 55 }}
       style={{ position: 'absolute', inset: 0 }}
     >
@@ -81,7 +96,7 @@ export function CelebrationScene({
         <StageLights />
         <Ground />
         <Fireworks />
-        <Balloons count={12} />
+        <Balloons count={balloonCount} />
         <Confetti palette={palette} />
         <Cake
           name={name}
