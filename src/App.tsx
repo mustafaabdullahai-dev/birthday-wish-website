@@ -167,7 +167,7 @@ export default function App() {
     <>
       <AnimatePresence mode="wait">
         {screen === 'create' ? (
-          <CreateWish key="create" palette={paletteForName('creator')} />
+          <CreateWish key="create" />
         ) : (
           <LoginScreen key="login" palette={palette} onStart={(n) => goCelebrate(n)} />
         )}
