@@ -48,7 +48,7 @@ test('create-wish flow produces a shareable link', async ({ page }) => {
 })
 
 test('essential controls appear on the celebration controls bar', async ({ page }) => {
-  // Seed a saved wish link so the landing page offers it under "Jump back in".
+  // Seed a saved wish link, then open it through the "Already have a link?" input.
   await page.addInitScript(() => {
     localStorage.setItem(
       'bday_wishLinks',
@@ -73,7 +73,8 @@ test('essential controls appear on the celebration controls bar', async ({ page 
 
   await page.goto('/')
 
-  await page.getByRole('button', { name: /sara/i }).click()
+  await page.getByPlaceholder(/paste the wish link/i).fill('sara-seeded')
+  await page.getByRole('button', { name: 'Open', exact: true }).click()
 
   const controls = page.locator('.controls-bar')
   await expect(controls).toBeVisible({ timeout: 15_000 })

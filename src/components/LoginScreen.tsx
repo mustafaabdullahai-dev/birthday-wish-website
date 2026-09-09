@@ -1,8 +1,7 @@
 import { useState, useRef } from 'react'
 import { motion } from 'framer-motion'
-import { useStore, readWishLinks } from '../store/useStore'
+import { useStore } from '../store/useStore'
 import { audio } from '../utils/audioEngine'
-import { initials, paletteForName } from '../utils/helpers'
 import type { Palette } from '../types'
 import { useI18n, LOCALES, type Locale } from '../i18n'
 
@@ -52,12 +51,6 @@ export function LoginScreen({ palette }: { palette: Palette }) {
   const [link, setLink] = useState('')
   const [error, setError] = useState('')
   const openRef = useRef<HTMLInputElement>(null)
-  const recents = readWishLinks().slice(0, 4)
-
-  const openSlug = (slug: string) => {
-    audio.resume()
-    window.location.hash = `/celebrate/${slug}`
-  }
 
   const submitLink = (e: React.FormEvent) => {
     e.preventDefault()
@@ -159,24 +152,6 @@ export function LoginScreen({ palette }: { palette: Palette }) {
             </form>
             {error && <p className="error-text">{error}</p>}
           </div>
-
-          {recents.length > 0 && (
-            <div className="recent-list">
-              <span className="open-eyebrow">Jump back in</span>
-              {recents.map((r) => (
-                <button key={r.id} className="recent-link" onClick={() => openSlug(r.slug)}>
-                  <span className="recent-avatar" style={{ background: paletteForName(r.forName).primary }}>
-                    {initials(r.forName)}
-                  </span>
-                  <span className="recent-name">
-                    <strong>{r.forName}</strong>
-                    <em>wish by {r.fromName}</em>
-                  </span>
-                  <span className="recent-go">open →</span>
-                </button>
-              ))}
-            </div>
-          )}
         </div>
 
         <footer className="login-foot">
