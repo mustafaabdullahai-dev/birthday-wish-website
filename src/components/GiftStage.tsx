@@ -3,6 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion'
 import type { Palette, MemoryFile } from '../types'
 import { audio } from '../utils/audioEngine'
 import { initials } from '../utils/helpers'
+import { useStore } from '../store/useStore'
+import { GuestbookModal } from './GuestbookModal'
 
 interface BoxProps {
   palette: Palette
@@ -16,6 +18,8 @@ const BOX_COLORS = ['#FF6B6B', '#4ECDC4', '#FFD93D']
 
 function GiftStage({ palette, memories, message, name, onContinue }: BoxProps) {
   const [opened, setOpened] = useState<number | null>(null)
+  const [showGuestbook, setShowGuestbook] = useState(false)
+  const linkSeed = useStore((s) => s.linkSeed)
   const hasImages = memories.some((m) => m.type === 'image')
   const hasText = memories.some((m) => m.type === 'text')
 
@@ -67,7 +71,28 @@ function GiftStage({ palette, memories, message, name, onContinue }: BoxProps) {
             {!box.available && box.id === 0 && <span className="gift-note">empty for now</span>}
           </motion.button>
         ))}
+        {linkSeed && (
+          <motion.button
+            className="gift-box-btn guestbook-box"
+            initial={{ opacity: 0, y: 40 }}
+            animate={{ opacity: 1, y: [0, -8, 0] }}
+            transition={{ delay: 0.45, repeat: Infinity, repeatDelay: 2.8, duration: 1.6 }}
+            whileHover={{ scale: 1.08 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => {
+              audio.chime()
+              setShowGuestbook(true)
+            }}
+            style={{ '--box': '#B19CD9', '--glow': palette.primary } as React.CSSProperties}
+          >
+            <span className="gift-icon">📖</span>
+            <span className="gift-label">Guestbook</span>
+            <span className="gift-note">sign it ❤️</span>
+          </motion.button>
+        )}
       </div>
+
+      {showGuestbook && linkSeed && <GuestbookModal slug={linkSeed} palette={palette} onClose={() => setShowGuestbook(false)} />}
 
       <AnimatePresence>
         {opened === 0 && (

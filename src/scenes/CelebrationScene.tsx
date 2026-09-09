@@ -1,5 +1,5 @@
-import { Suspense, useRef, useMemo } from 'react'
-import { Canvas, useFrame } from '@react-three/fiber'
+import { Suspense, useRef, useMemo, useEffect } from 'react'
+import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import type { Palette } from '../types'
 import { Fireworks } from './Fireworks'
@@ -18,6 +18,15 @@ interface SceneProps {
   onBlow: () => void
   cakeFrom?: string
   activePhase?: 'idle' | 'active'
+  canvasRef?: React.MutableRefObject<HTMLCanvasElement | null>
+}
+
+function CanvasGrabber({ canvasRef }: { canvasRef?: React.MutableRefObject<HTMLCanvasElement | null> }) {
+  const gl = useThree((s) => s.gl)
+  useEffect(() => {
+    if (canvasRef && gl?.domElement) canvasRef.current = gl.domElement
+  }, [gl, canvasRef])
+  return null
 }
 
 function webglAvailable(): boolean {
@@ -92,6 +101,7 @@ export function CelebrationScene({
   onBlow,
   cakeFrom,
   activePhase = 'active',
+  canvasRef,
 }: SceneProps) {
   const { dprMax, isLowEnd } = useMemo(() => getQualityTier(), [])
   const balloonCount = isLowEnd ? 6 : 12
@@ -109,6 +119,7 @@ export function CelebrationScene({
         }
       }}
     >
+      <CanvasGrabber canvasRef={canvasRef} />
       <color attach="background" args={[palette.background[0] / 255, palette.background[1] / 255, palette.background[2] / 255]} />
       <fog attach="fog" args={['#0c0a20', 20, 42]} />
       <Suspense fallback={null}>

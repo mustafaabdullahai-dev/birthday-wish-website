@@ -1,0 +1,17 @@
+{
+  "name": "Celebrate — 3D Birthday Wishes",
+  "short_name": "Celebrate",
+  "description": "A magical 3D birthday celebration: fireworks, cake, wishes and memories.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0e0a22",
+  "theme_color": "#0e0a22",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

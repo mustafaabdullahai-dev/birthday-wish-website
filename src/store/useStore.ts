@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
-import type { SessionUser, Screen, WishLink, MemoryFile, CelebrationStage, Emotion, ThemePreset } from '../types'
+import type { SessionUser, Screen, WishLink, MemoryFile, CelebrationStage, Emotion, ThemePreset, GuestbookEntry } from '../types'
 import { paletteForName, uid, todayISO, makeSlug, hashName } from '../utils/helpers'
 
 const SESSION_TTL = 24 * 60 * 60 * 1000
@@ -152,6 +152,31 @@ export async function fetchWishLink(slug: string): Promise<WishLink | null> {
     if (!res.ok) return null
     const data = (await res.json()) as WishLink
     return data && typeof data === 'object' && typeof data.forName === 'string' ? data : null
+  } catch {
+    return null
+  }
+}
+
+export async function fetchGuestbook(slug: string): Promise<GuestbookEntry[]> {
+  try {
+    const res = await fetch(`/api/wish/guestbook?slug=${encodeURIComponent(slug)}`)
+    if (!res.ok) return []
+    const data = (await res.json()) as { entries?: GuestbookEntry[] }
+    return data.entries ?? []
+  } catch {
+    return []
+  }
+}
+
+export async function postGuestbookEntry(slug: string, entry: { name: string; message: string; photo?: string }): Promise<GuestbookEntry | null> {
+  try {
+    const res = await fetch(`/api/wish/guestbook?slug=${encodeURIComponent(slug)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(entry),
+    })
+    if (!res.ok) return null
+    return (await res.json()) as GuestbookEntry
   } catch {
     return null
   }

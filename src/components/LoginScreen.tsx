@@ -4,6 +4,7 @@ import { useStore, isSessionValid } from '../store/useStore'
 import { audio } from '../utils/audioEngine'
 import { initials } from '../utils/helpers'
 import type { Palette } from '../types'
+import { useI18n, LOCALES, type Locale } from '../i18n'
 
 function FloatingBits() {
   const bits = useRef(
@@ -41,6 +42,7 @@ export function LoginScreen({ palette, onStart }: { palette: Palette; onStart: (
   const session = useStore((s) => s.session)
   const login = useStore((s) => s.login)
   const setScreen = useStore((s) => s.setScreen)
+  const { locale, setLocale } = useI18n()
   const [name, setName] = useState('')
   const [error, setError] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
@@ -71,6 +73,19 @@ export function LoginScreen({ palette, onStart }: { palette: Palette; onStart: (
       exit={{ opacity: 0 }}
     >
       <FloatingBits />
+
+      <div className="lang-switch">
+        {LOCALES.map((l) => (
+          <button
+            key={l}
+            className={`lang-btn ${locale === l ? 'active' : ''}`}
+            onClick={() => setLocale(l as Locale)}
+            aria-label={`Switch language to ${l}`}
+          >
+            {l === 'en' ? 'EN' : 'اردو'}
+          </button>
+        ))}
+      </div>
 
       <div className="sparkle" style={{ top: '12%', left: '18%', animationDelay: '0s' }}>✨</div>
       <div className="sparkle" style={{ top: '30%', right: '15%', animationDelay: '1.2s' }}>🎈</div>

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import type { Palette, MemoryFile } from '../types'
 import { useStore } from '../store/useStore'
@@ -8,6 +8,7 @@ import { NameOverlay } from './NameOverlay'
 import { LetterModal } from './LetterModal'
 import { GiftStage } from './GiftStage'
 import { generateWish } from '../utils/helpers'
+import { useCanvasCapture } from '../hooks/useCanvasCapture'
 
 interface Props {
   name: string
@@ -20,6 +21,7 @@ interface Props {
 
 export function CelebrateScreen({ name, palette, cakeColor, cakeMessage, cakeFrom, cakeMemories }: Props) {
   const setStage = useStore((s) => s.setStage)
+  const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const [stage, setLocalStage] = useState<'intro' | 'cake' | 'letter' | 'gifts'>('intro')
   const [candlesOut, setCandlesOut] = useState(false)
   const [cakeEmerging, setCakeEmerging] = useState(false)
@@ -84,6 +86,7 @@ export function CelebrateScreen({ name, palette, cakeColor, cakeMessage, cakeFro
         onBlow={handleBlow}
         cakeFrom={cakeFrom}
         activePhase={stage === 'letter' || stage === 'gifts' ? 'idle' : 'active'}
+        canvasRef={canvasRef}
       />
 
       {stage !== 'gifts' && <NameOverlay name={name} palette={palette} />}
@@ -109,7 +112,7 @@ export function CelebrateScreen({ name, palette, cakeColor, cakeMessage, cakeFro
         )}
       </AnimatePresence>
 
-      <CelebrateControls onRestart={restage} />
+      <CelebrateControls onRestart={restage} canvasRef={canvasRef} />
 
       <AnimatePresence>
         {showLetter && (
@@ -157,7 +160,7 @@ function inferCakeColor(name: string): string {
   return paletteMap[hash % paletteMap.length]
 }
 
-function CelebrateControls({ onRestart }: { onRestart: () => void }) {
+function CelebrateControls({ onRestart, canvasRef }: { onRestart: () => void; canvasRef: React.RefObject<HTMLCanvasElement | null> }) {
   const musicOn = useStore((s) => s.musicOn)
   const toggleMusic = useStore((s) => s.toggleMusic)
   const volume = useStore((s) => s.volume)
@@ -165,10 +168,19 @@ function CelebrateControls({ onRestart }: { onRestart: () => void }) {
   const logout = useStore((s) => s.logout)
   const setScreen = useStore((s) => s.setScreen)
   const [uiLight, setUiLight] = useState(false)
+  const [showMusicPicker, setShowMusicPicker] = useState(false)
+  const [melody, setMelody] = useState<'happy-birthday' | 'waltz' | 'jazz'>('happy-birthday')
+  const { captureAndDownload, recording, supported } = useCanvasCapture(() => canvasRef.current)
 
   useEffect(() => {
     audio.setVolume(volume)
   }, [volume])
+
+  const pickMelody = (m: 'happy-birthday' | 'waltz' | 'jazz') => {
+    setMelody(m)
+    audio.setMelody(m)
+    setShowMusicPicker(false)
+  }
 
   const toggleUiTheme = () => {
     const next = !uiLight
@@ -208,6 +220,38 @@ function CelebrateControls({ onRestart }: { onRestart: () => void }) {
       <button className="ctl" onClick={onRestart} aria-label="Replay celebration" title="Replay celebration">
         🔄
       </button>
+      <button
+        className="ctl"
+        onClick={() => setShowMusicPicker((v) => !v)}
+        aria-label="Choose music"
+        title="Choose music"
+      >
+        🎵
+      </button>
+      {showMusicPicker && (
+        <div className="music-picker">
+          <button className={melody === 'happy-birthday' ? 'active' : ''} onClick={() => pickMelody('happy-birthday')}>
+            🎶 Happy Birthday
+          </button>
+          <button className={melody === 'waltz' ? 'active' : ''} onClick={() => pickMelody('waltz')}>
+            ⏱️ Waltz
+          </button>
+          <button className={melody === 'jazz' ? 'active' : ''} onClick={() => pickMelody('jazz')}>
+            🎷 Jazz
+          </button>
+        </div>
+      )}
+      {supported && (
+        <button
+          className="ctl"
+          onClick={() => void captureAndDownload()}
+          aria-label="Download highlight clip"
+          title="Download highlight clip"
+          disabled={recording}
+        >
+          {recording ? '⏺️' : '🎬'}
+        </button>
+      )}
       <button className="ctl" onClick={toggleUiTheme} aria-label="Toggle UI theme" title="Toggle UI theme">
         {uiLight ? '🌙' : '☀️'}
       </button>

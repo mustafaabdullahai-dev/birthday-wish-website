@@ -16,6 +16,44 @@ function parseHash(): string | null {
   return m ? m[1] : null
 }
 
+function setMeta(name: string, content: string) {
+  let el = document.querySelector(`meta[name="${name}"]`) as HTMLMetaElement | null
+  if (!el) {
+    el = document.createElement('meta')
+    el.setAttribute('name', name)
+    document.head.appendChild(el)
+  }
+  el.setAttribute('content', content)
+}
+
+function setProperty(property: string, content: string) {
+  let el = document.querySelector(`meta[property="${property}"]`) as HTMLMetaElement | null
+  if (!el) {
+    el = document.createElement('meta')
+    el.setAttribute('property', property)
+    document.head.appendChild(el)
+  }
+  el.setAttribute('content', content)
+}
+
+function markPrivateWish(name: string, fromName?: string, slug?: string) {
+  document.title = `Celebrating ${name} — Celebrate`
+  setMeta('robots', 'noindex, nofollow')
+  setProperty('og:title', `A birthday celebration for ${name}`)
+  setProperty('og:description', fromName ? `A wish from ${fromName} — open to celebrate.` : 'A special 3D birthday wish awaits.')
+  if (slug) {
+    setProperty('og:image', `${window.location.origin}/api/og-image?slug=${encodeURIComponent(slug)}`)
+    setProperty('twitter:image', `${window.location.origin}/api/og-image?slug=${encodeURIComponent(slug)}`)
+  }
+}
+
+function resetMeta() {
+  document.title = 'Celebrate — 3D Birthday Wishes'
+  setMeta('robots', 'index, follow')
+  setProperty('og:title', 'Celebrate — 3D Birthday Wishes')
+  setProperty('og:description', 'A magical 3D birthday celebration with fireworks, cake, wishes and memories.')
+}
+
 interface CelebrateCtx {
   cakeColor?: string
   message?: string
@@ -50,6 +88,7 @@ export default function App() {
       setCelebrateName(local.forName)
       setScreen('celebration')
       setWishMissing(false)
+      markPrivateWish(local.forName, local.fromName, slug)
       return
     }
     setWishLoading(true)
@@ -66,6 +105,7 @@ export default function App() {
       setCelebrateName(remote.forName)
       setScreen('celebration')
       setWishMissing(false)
+      markPrivateWish(remote.forName, remote.fromName, slug)
     } else {
       setWishMissing(true)
     }
@@ -79,6 +119,8 @@ export default function App() {
     } else if (valid) {
       setCelebrateName(session.user.username)
       setScreen('celebration')
+    } else {
+      resetMeta()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])

@@ -16,11 +16,28 @@ class AudioEngine {
   private static readonly NOTE = 60 / AudioEngine.BPM
 
   /* Melody in scale degrees relative to C (C4 = 0). */
-  private static readonly MELODY = [
+  private static readonly MELODY: [number, number][] = [
     [0, 1], [0, 1], [2, 1], [0, 1], [4, 1], [2, 2],
     [0, 1], [0, 1], [2, 1], [0, 1], [5, 1], [4, 2],
     [0, 1], [0, 1], [9, 1], [7, 1], [4, 1], [2, 1], [4, 2],
   ]
+
+  /* Waltz melody (3/4 feel) — classic celebration variant. */
+  private static readonly MELODY_WALTZ: [number, number][] = [
+    [0, 1.5], [2, 1.5], [4, 1.5], [7, 1.5], [4, 3],
+    [2, 1.5], [0, 1.5], [2, 1.5], [5, 1.5], [4, 3],
+    [0, 1.5], [2, 1.5], [9, 1.5], [7, 1.5], [4, 3],
+  ]
+
+  /* Jazz-ish swing melody (upbeat celebration variant). */
+  private static readonly MELODY_JAZZ: [number, number][] = [
+    [0, 0.5], [2, 0.5], [0, 0.5], [4, 0.5], [2, 1], [0, 0.5], [2, 0.5], [4, 1.5],
+    [0, 0.5], [2, 0.5], [0, 0.5], [5, 0.5], [4, 1], [2, 0.5], [4, 0.5], [5, 1.5],
+    [7, 1], [5, 0.5], [4, 0.5], [2, 0.5], [4, 0.5], [7, 1], [9, 1.5],
+  ]
+
+  private melody: [number, number][] = AudioEngine.MELODY
+  private melodyName = 'happy-birthday'
 
   private static freq(degree: number, base = 261.63): number {
     return base * Math.pow(2, degree / 12)
@@ -64,7 +81,7 @@ class AudioEngine {
     if (!this.ctx) return
     const osc = this.ctx.createOscillator()
     const gain = this.ctx.createGain()
-    osc.type = 'triangle'
+    osc.type = this.oscType
     osc.frequency.value = AudioEngine.freq(degree)
     gain.gain.setValueAtTime(0.0001, time)
     gain.gain.exponentialRampToValueAtTime(0.9, time + 0.02)
@@ -79,12 +96,34 @@ class AudioEngine {
     if (!this.ctx || !this.melodyGain) return
     const ahead = this.ctx.currentTime + 0.15
     while (this.nextNoteTime < ahead) {
-      const [degree, beats] = AudioEngine.MELODY[this.stepIndex % AudioEngine.MELODY.length]
+      const [degree, beats] =
+        this.melody[this.stepIndex % this.melody.length]
       this.scheduleNote(this.nextNoteTime, degree, AudioEngine.NOTE * (beats + 1))
       this.stepIndex += 1
       this.nextNoteTime += AudioEngine.NOTE * beats
     }
   }
+
+  setMelody(name: 'happy-birthday' | 'waltz' | 'jazz', oscillator: OscillatorType = 'triangle') {
+    this.melodyName = name
+    this.melody =
+      name === 'waltz'
+        ? AudioEngine.MELODY_WALTZ
+        : name === 'jazz'
+          ? AudioEngine.MELODY_JAZZ
+          : AudioEngine.MELODY
+    this.oscType = oscillator
+    if (this.playing) {
+      this.stopMusic()
+      this.startMusic()
+    }
+  }
+
+  getMelodyName(): string {
+    return this.melodyName
+  }
+
+  private oscType: OscillatorType = 'triangle'
 
   startMusic() {
     this.resume()

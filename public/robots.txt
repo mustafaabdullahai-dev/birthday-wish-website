@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+
+Sitemap: https://birthday-wish-website.netlify.app/sitemap.xml
