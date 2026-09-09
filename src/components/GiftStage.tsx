@@ -175,7 +175,9 @@ function MemoryGallery({ memories }: { memories: MemoryFile[] }) {
               whileHover={{ scale: 1.05, zIndex: 2 }}
               onClick={() => setActive(i)}
             >
-              {m.type === 'image' && m.dataUrl ? (
+              {m.type === 'video' && m.dataUrl ? (
+                <video src={m.dataUrl} muted playsInline preload="metadata" />
+              ) : m.type === 'image' && m.dataUrl ? (
                 <img src={m.dataUrl} alt={m.caption || 'memory'} loading="lazy" />
               ) : (
                 <div className="memory-fallback">
@@ -203,6 +205,15 @@ function Lightbox({ file, onClose }: { file: MemoryFile; onClose: () => void }) 
         <motion.img
           src={file.dataUrl}
           alt={file.caption || 'memory'}
+          initial={{ scale: 0.7 }}
+          animate={{ scale: 1 }}
+          onClick={(e) => e.stopPropagation()}
+        />
+      ) : file.type === 'video' && file.dataUrl ? (
+        <motion.video
+          src={file.dataUrl}
+          controls
+          autoPlay
           initial={{ scale: 0.7 }}
           animate={{ scale: 1 }}
           onClick={(e) => e.stopPropagation()}

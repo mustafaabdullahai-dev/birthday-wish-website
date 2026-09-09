@@ -10,6 +10,10 @@ import {
   generateWish,
   surpriseFact,
   THEME_PRESETS,
+  FAMILY_ROLES,
+  ROLE_PAIR_SUGGESTIONS,
+  roleLabel,
+  relationPhrase,
 } from '../helpers'
 
 describe('helpers', () => {
@@ -61,14 +65,47 @@ describe('helpers', () => {
     })
 
     it('all presets carry a full palette', () => {
-      for (const preset of Object.keys(THEME_PRESETS) as Array<keyof typeof THEME_PRESETS>) {
-        const { palette, label } = THEME_PRESETS[preset]
+      const presets = Object.keys(THEME_PRESETS) as Array<keyof typeof THEME_PRESETS>
+      expect(presets.length).toBeGreaterThanOrEqual(10)
+      for (const preset of presets) {
+        const { palette, label, tagline, cardArt } = THEME_PRESETS[preset]
         expect(label).toBeTruthy()
+        expect(tagline).toBeTruthy()
+        expect(cardArt).toBeTruthy()
         expect(palette.primary).toBeTruthy()
         expect(palette.secondary).toBeTruthy()
         expect(palette.accent).toBeTruthy()
         expect(palette.dark).toBeTruthy()
       }
+    })
+  })
+
+  describe('family roles', () => {
+    it('covers the core family relations with labels', () => {
+      expect(FAMILY_ROLES.father.label).toBe('Father')
+      expect(FAMILY_ROLES.daughter.label).toBe('Daughter')
+      expect(FAMILY_ROLES.uncle.label).toBe('Uncle')
+      expect(FAMILY_ROLES.grandfather.label).toBe('Grandfather')
+      expect(Object.keys(FAMILY_ROLES).length).toBeGreaterThanOrEqual(15)
+    })
+
+    it('exposes curated from->to pair suggestions', () => {
+      for (const [from, to] of ROLE_PAIR_SUGGESTIONS) {
+        expect(FAMILY_ROLES[from]).toBeTruthy()
+        expect(FAMILY_ROLES[to]).toBeTruthy()
+      }
+    })
+
+    it('roleLabel resolves ids and stays safe for junk', () => {
+      expect(roleLabel('father')).toBe('Father')
+      expect(roleLabel('')).toBe('')
+      expect(roleLabel('???')).toBe('???')
+    })
+
+    it('relationPhrase pairs both roles with a separator', () => {
+      expect(relationPhrase('father', 'daughter')).toBe('Father · Daughter')
+      expect(relationPhrase('uncle', '')).toBe('Uncle')
+      expect(relationPhrase('', 'daughter')).toBe('')
     })
   })
 

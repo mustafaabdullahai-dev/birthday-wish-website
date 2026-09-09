@@ -3242,6 +3242,97 @@ html[dir='rtl'] .letter-close {
   outline-offset: 3px;
 }
 
+/* Family role picker */
+
+.cv2-role-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: end;
+}
+
+.cv2-role-arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-bottom: 12px;
+  color: var(--cv2-fg-muted);
+  font-size: 20px;
+}
+
+.cv2-field select {
+  width: 100%;
+  background: var(--cv2-surface);
+  color: var(--cv2-fg);
+  border-radius: 12px;
+  border: 1px solid var(--cv2-border);
+  padding: 12px 14px;
+  font: inherit;
+  appearance: none;
+  transition: border-color var(--t-fast) var(--ease);
+}
+
+.cv2-field select:focus {
+  outline: none;
+  border-color: var(--cv2-primary);
+}
+
+.cv2-role-quick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.cv2-role-chip {
+  padding: 7px 11px;
+  border-radius: 999px;
+  border: 1px solid var(--cv2-border);
+  background: transparent;
+  color: var(--cv2-fg);
+  font-size: 12.5px;
+  cursor: pointer;
+  transition: background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
+}
+
+.cv2-role-chip:hover {
+  background: rgba(255, 247, 251, 0.07);
+  border-color: color-mix(in srgb, var(--cv2-primary) 40%, transparent);
+}
+
+.cv2-role-chip.active {
+  border-color: var(--cv2-primary);
+  color: var(--cv2-primary);
+  background: color-mix(in srgb, var(--cv2-primary) 12%, transparent);
+}
+
+/* Video upload thumbs */
+
+.cv2-photo-thumb-strip .thumb video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 11px;
+  border: 1px solid var(--cv2-border);
+  background: #0c0a12;
+}
+
+.cv2-pc-video-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+  font-size: 10px;
+}
+
+.share-actions button:disabled {
+  opacity: 0.55;
+  cursor: progress;
+}
+
 /* Photo uploader */
 
 .cv2-photo-dropzone {

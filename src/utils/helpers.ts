@@ -1,4 +1,4 @@
-import type { Palette, Emotion, ThemePreset } from '../types'
+import type { Palette, Emotion, ThemePreset, CardArt, FamilyRoleId } from '../types'
 
 export const PALETTES: Palette[] = [
   {
@@ -65,9 +65,10 @@ export function paletteForName(name: string): Palette {
   return PALETTES[hashName(name) % PALETTES.length]
 }
 
-export const THEME_PRESETS: Record<ThemePreset, { label: string; palette: Palette }> = {
+export const THEME_PRESETS: Record<ThemePreset, { label: string; tagline: string; palette: Palette; cardArt: CardArt }> = {
   'classic-gold': {
     label: 'Classic Gold',
+    tagline: 'Gilded confetti & warm glow',
     palette: {
       primary: '#FFD700',
       secondary: '#FF69B4',
@@ -76,9 +77,11 @@ export const THEME_PRESETS: Record<ThemePreset, { label: string; palette: Palett
       background: [14, 10, 34],
       dark: '#120d28',
     },
+    cardArt: 'confetti',
   },
   'pastel-dream': {
     label: 'Pastel Dream',
+    tagline: 'Soft balloons & marshmallow skies',
     palette: {
       primary: '#FFB6C1',
       secondary: '#B19CD9',
@@ -87,9 +90,11 @@ export const THEME_PRESETS: Record<ThemePreset, { label: string; palette: Palett
       background: [30, 22, 40],
       dark: '#2a1f3d',
     },
+    cardArt: 'balloons',
   },
   'midnight-neon': {
     label: 'Midnight Neon',
+    tagline: 'Electric stars on a dark sky',
     palette: {
       primary: '#FF1493',
       secondary: '#00FFFF',
@@ -98,6 +103,98 @@ export const THEME_PRESETS: Record<ThemePreset, { label: string; palette: Palett
       background: [6, 6, 30],
       dark: '#08081f',
     },
+    cardArt: 'stars',
+  },
+  'rose-blush': {
+    label: 'Rose Blush',
+    tagline: 'Soft hearts & romantic petals',
+    palette: {
+      primary: '#FF8FAB',
+      secondary: '#FF4D6D',
+      accent: '#FFD6A5',
+      glow: '#ffe0e8',
+      background: [30, 14, 22],
+      dark: '#260f1a',
+    },
+    cardArt: 'hearts',
+  },
+  'emerald-veil': {
+    label: 'Emerald Veil',
+    tagline: 'Jewel-green shine & golden magic',
+    palette: {
+      primary: '#3DDC97',
+      secondary: '#F4B942',
+      accent: '#9EF01A',
+      glow: '#d8ffe9',
+      background: [4, 24, 20],
+      dark: '#071c17',
+    },
+    cardArt: 'sparkle',
+  },
+  'sunset-amber': {
+    label: 'Sunset Amber',
+    tagline: 'Golden rays over glowing embers',
+    palette: {
+      primary: '#FF9E40',
+      secondary: '#E63946',
+      accent: '#FFD166',
+      glow: '#ffe8c9',
+      background: [28, 12, 8],
+      dark: '#1f0d07',
+    },
+    cardArt: 'rays',
+  },
+  'royal-berry': {
+    label: 'Royal Berry',
+    tagline: 'Fireworks over a violet night',
+    palette: {
+      primary: '#B388FF',
+      secondary: '#FF2E97',
+      accent: '#40C4FF',
+      glow: '#e8d8ff',
+      background: [14, 6, 34],
+      dark: '#100525',
+    },
+    cardArt: 'fireworks',
+  },
+  'ocean-breeze': {
+    label: 'Ocean Breeze',
+    tagline: 'Cool waves & sky-blue calm',
+    palette: {
+      primary: '#48CAE4',
+      secondary: '#00B4D8',
+      accent: '#F1FAEE',
+      glow: '#d6f4ff',
+      background: [4, 20, 32],
+      dark: '#06161f',
+    },
+    cardArt: 'waves',
+  },
+  'vintage-lace': {
+    label: 'Vintage Lace',
+    tagline: 'Cream paper & pressed flowers',
+    palette: {
+      primary: '#E7C68E',
+      secondary: '#9B5DE5',
+      accent: '#5A3E36',
+      glow: '#fbf0db',
+      background: [38, 24, 18],
+      dark: '#2b1810',
+    },
+    cardArt: 'flowers',
+  },
+  'candy-pop': {
+    label: 'Candy Pop',
+    tagline: 'Minty dots & candy-bright cheer',
+    palette: {
+      primary: '#80FFDB',
+      secondary: '#FFD166',
+      accent: '#FF5D8F',
+      glow: '#e0fff4',
+      background: [16, 28, 22],
+      dark: '#0e201a',
+    },
+    cardArt: 'dots',
   },
 }
 
@@ -105,6 +202,62 @@ export function applyThemePreset(base: Palette, preset?: ThemePreset): Palette {
   if (!preset) return base
   const p = THEME_PRESETS[preset]?.palette
   return p ? { ...base, ...p } : base
+}
+
+export const FAMILY_ROLES: Record<FamilyRoleId, { label: string; emoji: string }> = {
+  father: { label: 'Father', emoji: '👨' },
+  mother: { label: 'Mother', emoji: '👩' },
+  son: { label: 'Son', emoji: '👦' },
+  daughter: { label: 'Daughter', emoji: '👧' },
+  grandfather: { label: 'Grandfather', emoji: '👴' },
+  grandmother: { label: 'Grandmother', emoji: '👵' },
+  grandson: { label: 'Grandson', emoji: '🧒' },
+  granddaughter: { label: 'Granddaughter', emoji: '🧒' },
+  uncle: { label: 'Uncle', emoji: '👨' },
+  aunt: { label: 'Aunt', emoji: '👩' },
+  nephew: { label: 'Nephew', emoji: '🧒' },
+  niece: { label: 'Niece', emoji: '🧒' },
+  brother: { label: 'Brother', emoji: '👦' },
+  sister: { label: 'Sister', emoji: '👧' },
+  husband: { label: 'Husband', emoji: '👨' },
+  wife: { label: 'Wife', emoji: '👩' },
+  cousin: { label: 'Cousin', emoji: '🧑' },
+  friend: { label: 'Friend', emoji: '🧑‍🤝‍🧑' },
+}
+
+export const ROLE_PAIR_SUGGESTIONS: [FamilyRoleId, FamilyRoleId][] = [
+  ['father', 'daughter'],
+  ['father', 'son'],
+  ['mother', 'daughter'],
+  ['mother', 'son'],
+  ['grandfather', 'grandson'],
+  ['grandfather', 'granddaughter'],
+  ['grandmother', 'grandson'],
+  ['grandmother', 'granddaughter'],
+  ['uncle', 'nephew'],
+  ['uncle', 'niece'],
+  ['aunt', 'nephew'],
+  ['aunt', 'niece'],
+  ['brother', 'sister'],
+  ['sister', 'brother'],
+  ['brother', 'brother'],
+  ['sister', 'sister'],
+  ['cousin', 'cousin'],
+  ['husband', 'wife'],
+  ['wife', 'husband'],
+  ['friend', 'friend'],
+]
+
+export function roleLabel(id?: string): string {
+  if (!id) return ''
+  const role = FAMILY_ROLES[id as FamilyRoleId]
+  return role ? role.label : id
+}
+
+export function relationPhrase(fromRole?: string, toRole?: string): string {
+  if (!fromRole) return ''
+  const from = roleLabel(fromRole)
+  return toRole ? `${from} · ${roleLabel(toRole)}` : from
 }
 
 export function versionForName(name: string): number {

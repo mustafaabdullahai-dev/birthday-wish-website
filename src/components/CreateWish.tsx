@@ -2,9 +2,20 @@ import { useState, useCallback } from 'react'
 import type { Emotion, MemoryFile, ThemePreset } from '../types'
 import { useStore } from '../store/useStore'
 import { saveWishLink, readWishLinks } from '../store/useStore'
-import { paletteForName, uid, generateWish, todayISO, initials, downscaleImage, THEME_PRESETS } from '../utils/helpers'
+import {
+  paletteForName,
+  uid,
+  generateWish,
+  todayISO,
+  initials,
+  downscaleImage,
+  THEME_PRESETS,
+  FAMILY_ROLES,
+  ROLE_PAIR_SUGGESTIONS,
+  roleLabel,
+} from '../utils/helpers'
+import { exportCardPoster, exportCardGif, exportCardVideo, downloadResult } from '../utils/cardExporter'
 import { audio } from '../utils/audioEngine'
-import type { Palette } from '../types'
 import { QrCode, qrDownloadName } from './QrCode'
 
 const EMOTIONS: { id: Emotion; label: string; icon: string }[] = [
@@ -23,7 +34,7 @@ const EXPIRE_OPTIONS: { id: string; label: string; ms: number | null }[] = [
   { id: 'never', label: 'Keep forever', ms: null },
 ]
 
-const THEME_PRESET_LIST = Object.entries(THEME_PRESETS) as [ThemePreset, { label: string; palette: Palette }][]
+const THEME_PRESET_LIST = Object.entries(THEME_PRESETS) as [ThemePreset, (typeof THEME_PRESETS)[ThemePreset]][]
 
 const STEPS = [
   { label: 'Who', chapter: 'About' },
@@ -43,7 +54,7 @@ const STEP_COPY = [
   },
   {
     title: (<>Add your <Em>memories</Em></>),
-    subtitle: 'A personal message and a few photos make it unforgettable.',
+    subtitle: 'A personal message, photos, and videos make it unforgettable.',
   },
   {
     title: (<>Looks <Em>ready?</Em></>),
@@ -77,6 +88,8 @@ export function CreateWish() {
   const [step, setStep] = useState(0)
   const [forName, setForName] = useState('')
   const [fromName, setFromName] = useState('')
+  const [fromRole, setFromRole] = useState('')
+  const [toRole, setToRole] = useState('')
   const [birthday, setBirthday] = useState('')
   const [birthdayKnown, setBirthdayKnown] = useState(true)
   const [emotion, setEmotion] = useState<Emotion>('joyful')
@@ -92,40 +105,64 @@ export function CreateWish() {
 
   const handleUpload = useCallback((files: FileList | null) => {
     if (!files) return
-    const imgs = Array.from(files).filter((f) => f.type.startsWith('image/')).slice(0, 12)
-    if (imgs.length === 0) return
-    imgs.forEach((f) => {
-      downscaleImage(f)
-        .then((dataUrl) => {
-          setMemories((prev) => {
-            if (prev.length >= 20) return prev
-            const item: MemoryFile = {
-              id: uid(),
-              type: 'image',
-              dataUrl,
-              caption: f.name.replace(/\.[^.]+$/, ''),
-              uploadedAt: todayISO(),
-            }
-            return [...prev, item]
-          })
-        })
-        .catch(() => {
-          const reader = new FileReader()
-          reader.onload = () => {
+    const media = Array.from(files).filter((f) => f.type.startsWith('image/') || f.type.startsWith('video/')).slice(0, 12)
+    if (media.length === 0) return
+    media.forEach((f) => {
+      if (f.type.startsWith('image/')) {
+        downscaleImage(f)
+          .then((dataUrl) => {
             setMemories((prev) => {
               if (prev.length >= 20) return prev
               const item: MemoryFile = {
                 id: uid(),
                 type: 'image',
-                dataUrl: String(reader.result),
+                dataUrl,
                 caption: f.name.replace(/\.[^.]+$/, ''),
                 uploadedAt: todayISO(),
               }
               return [...prev, item]
             })
+          })
+          .catch(() => {
+            const reader = new FileReader()
+            reader.onload = () => {
+              setMemories((prev) => {
+                if (prev.length >= 20) return prev
+                const item: MemoryFile = {
+                  id: uid(),
+                  type: 'image',
+                  dataUrl: String(reader.result),
+                  caption: f.name.replace(/\.[^.]+$/, ''),
+                  uploadedAt: todayISO(),
+                }
+                return [...prev, item]
+              })
+            }
+            reader.readAsDataURL(f)
+          })
+        return
+      }
+      const small = f.size <= 1_200_000
+      const finish = (dataUrl: string) => {
+        setMemories((prev) => {
+          if (prev.length >= 20) return prev
+          const item: MemoryFile = {
+            id: uid(),
+            type: 'video',
+            dataUrl,
+            caption: f.name.replace(/\.[^.]+$/, ''),
+            uploadedAt: todayISO(),
           }
-          reader.readAsDataURL(f)
+          return [...prev, item]
         })
+      }
+      if (small) {
+        const reader = new FileReader()
+        reader.onload = () => finish(String(reader.result))
+        reader.readAsDataURL(f)
+      } else {
+        finish(URL.createObjectURL(f))
+      }
     })
   }, [])
 
@@ -171,6 +208,8 @@ export function CreateWish() {
     const saved = saveWishLink({
       forName: cleanFor,
       fromName: cleanFrom,
+      fromRole: roleLabel(fromRole) || undefined,
+      toRole: roleLabel(toRole) || undefined,
       emotion,
       message: wishText,
       cakeColor,
@@ -178,7 +217,9 @@ export function CreateWish() {
       expiresAt,
       birthday: birthdayKnown ? birthday : undefined,
       birthdayKnown,
-      memories,
+      memories: memories.map((m) =>
+        m.type === 'video' && m.dataUrl?.startsWith('blob:') ? { ...m, dataUrl: undefined } : m,
+      ),
     })
     setLink(`${window.location.origin}${window.location.pathname}#/celebrate/${saved.slug}`)
   }
@@ -203,6 +244,34 @@ export function CreateWish() {
     a.href = img.src
     a.download = qrDownloadName(forName)
     a.click()
+  }
+
+  const [exportBusy, setExportBusy] = useState<string | null>(null)
+
+  const exportCard = async (kind: 'poster' | 'gif' | 'video') => {
+    setExportBusy(kind)
+    audio.chime()
+    const firstImage = memories.find((m) => m.type === 'image')?.dataUrl
+    const opts = {
+      template: themePreset,
+      forName,
+      fromName: fromName.trim() || 'A secret admirer',
+      fromRole: roleLabel(fromRole) || undefined,
+      toRole: roleLabel(toRole) || undefined,
+      birthdayLabel:
+        birthdayKnown && birthday
+          ? new Date(birthday).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' })
+          : undefined,
+      message: message.trim() || generateWish(forName || 'friend', emotion),
+      photo: firstImage ?? null,
+    }
+    try {
+      const result =
+        kind === 'poster' ? await exportCardPoster(opts) : kind === 'gif' ? await exportCardGif(opts) : await exportCardVideo(opts)
+      if (result) downloadResult(result)
+    } finally {
+      setExportBusy(null)
+    }
   }
 
   const previewPalette = THEME_PRESETS[themePreset].palette
@@ -250,7 +319,7 @@ export function CreateWish() {
                     {step === 0 && (
                       <>
                         <div className="cv2-fieldset wide cv2-theme-picker">
-                          <span className="cv2-eyebrow cv2-theme-picker-eyebrow">Theme</span>
+                          <span className="cv2-eyebrow cv2-theme-picker-eyebrow">Template</span>
                           <button
                             type="button"
                             className="cv2-theme-trigger"
@@ -263,7 +332,7 @@ export function CreateWish() {
                             </span>
                             <span className="cv2-theme-trigger-copy">
                               <strong>{THEME_PRESETS[themePreset].label}</strong>
-                              <em>{previewPalette.dark}</em>
+                              <em>{THEME_PRESETS[themePreset].tagline}</em>
                             </span>
                             <Circle d="m6 9 6 6 6-6" />
                           </button>
@@ -282,7 +351,7 @@ export function CreateWish() {
                                   <span className="cv2-theme-swatch" style={{ background: `linear-gradient(135deg, ${t.palette.primary}, ${t.palette.secondary})` }} />
                                   <span className="cv2-theme-trigger-copy">
                                     <strong>{t.label}</strong>
-                                    <em>Celebration palette</em>
+                                    <em>{t.tagline}</em>
                                   </span>
                                   {themePreset === id && <Circle d="M20 6 9 17l-5-5" />}
                                 </button>
@@ -337,6 +406,50 @@ export function CreateWish() {
                             >
                               {birthdayKnown ? "I don't know the birth year" : 'Actually, I know the birth year'}
                             </button>
+                          </div>
+                        </div>
+
+                        <div className="cv2-fieldset wide">
+                          <span className="cv2-eyebrow">What's your family relationship?</span>
+                          <div className="cv2-role-grid">
+                            <label className="cv2-field">
+                              <span>I am their</span>
+                              <select value={fromRole} onChange={(e) => setFromRole(e.target.value)}>
+                                <option value="">Choose a role</option>
+                                {Object.entries(FAMILY_ROLES).map(([id, r]) => (
+                                  <option key={id} value={id}>
+                                    {r.emoji} {r.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+                            <span className="cv2-role-arrow">→</span>
+                            <label className="cv2-field">
+                              <span>They are my</span>
+                              <select value={toRole} onChange={(e) => setToRole(e.target.value)}>
+                                <option value="">Choose a role</option>
+                                {Object.entries(FAMILY_ROLES).map(([id, r]) => (
+                                  <option key={id} value={id}>
+                                    {r.emoji} {r.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+                          </div>
+                          <div className="cv2-role-quick">
+                            {ROLE_PAIR_SUGGESTIONS.map(([from, to]) => (
+                              <button
+                                key={`${from}-${to}`}
+                                type="button"
+                                className={`cv2-role-chip ${fromRole === from && toRole === to ? 'active' : ''}`}
+                                onClick={() => {
+                                  setFromRole(from)
+                                  setToRole(to)
+                                }}
+                              >
+                                {FAMILY_ROLES[from].emoji} {FAMILY_ROLES[from].label} → {FAMILY_ROLES[to].label}
+                              </button>
+                            ))}
                           </div>
                         </div>
                       </>
@@ -413,15 +526,15 @@ export function CreateWish() {
                         </label>
 
                         <div className="cv2-fieldset wide cv2-photo-uploader">
-                          <span className="cv2-eyebrow">Add a few photos</span>
+                          <span className="cv2-eyebrow">Add photos & videos</span>
                           <label
                             className={`cv2-photo-dropzone ${memories.length > 0 ? 'filled' : ''}`}
                             style={{ ['--glow' as string]: previewPalette.primary }}
                           >
-                            <input type="file" accept="image/*" multiple hidden onChange={(e) => handleUpload(e.target.files)} />
+                            <input type="file" accept="image/*,video/*" multiple hidden onChange={(e) => handleUpload(e.target.files)} />
                             <span className="dz-icon">🖼️</span>
                             <strong>
-                              {memories.length > 0 ? `${memories.length} memory photos attached` : 'Drop photos here'}
+                              {memories.length > 0 ? `${memories.length} memories attached` : 'Drop photos or videos here'}
                             </strong>
                             <small>{memories.length > 0 ? 'Click to add more' : 'or click to browse the celebration album'}</small>
                           </label>
@@ -429,7 +542,11 @@ export function CreateWish() {
                             <div className="cv2-photo-thumb-strip">
                               {memories.map((m) => (
                                 <span key={m.id} className="thumb">
-                                  <img src={m.dataUrl} alt={m.caption} />
+                                  {m.type === 'video' ? (
+                                    <video src={m.dataUrl} muted playsInline preload="metadata" />
+                                  ) : (
+                                    <img src={m.dataUrl} alt={m.caption} />
+                                  )}
                                   <button
                                     type="button"
                                     className="cv2-photo-remove"
@@ -467,12 +584,20 @@ export function CreateWish() {
                             <dd>{emoji?.icon} {emoji?.label}</dd>
                           </div>
                           <div>
-                            <dt>Theme</dt>
+                            <dt>Relationship</dt>
+                            <dd>{fromRole && toRole ? `${roleLabel(fromRole)} → ${roleLabel(toRole)}` : fromRole ? roleLabel(fromRole) : '—'}</dd>
+                          </div>
+                          <div>
+                            <dt>Template</dt>
                             <dd>{THEME_PRESETS[themePreset].label}</dd>
                           </div>
                           <div>
                             <dt>Photos</dt>
-                            <dd>{memories.length}</dd>
+                            <dd>{memories.filter((m) => m.type === 'image').length}</dd>
+                          </div>
+                          <div>
+                            <dt>Videos</dt>
+                            <dd>{memories.filter((m) => m.type === 'video').length}</dd>
                           </div>
                           <div>
                             <dt>Lifespan</dt>
@@ -516,6 +641,15 @@ export function CreateWish() {
                         <button className="btn-secondary" onClick={downloadQr}>
                           🖨️ Save QR image
                         </button>
+                        <button className="btn-secondary" onClick={() => exportCard('gif')} disabled={exportBusy !== null}>
+                          {exportBusy === 'gif' ? 'Making GIF…' : '🎞️ Download as GIF'}
+                        </button>
+                        <button className="btn-secondary" onClick={() => exportCard('video')} disabled={exportBusy !== null}>
+                          {exportBusy === 'video' ? 'Filming…' : '🎬 Download as video'}
+                        </button>
+                        <button className="btn-ghost" onClick={() => exportCard('poster')} disabled={exportBusy !== null}>
+                          🖼️ Save card image
+                        </button>
                         <button className="btn-ghost" onClick={() => setLink(null)}>
                           Make another
                         </button>
@@ -558,18 +692,23 @@ export function CreateWish() {
                         ) : (
                           <p>Surprise us — the year is a mystery</p>
                         )}
-                        <small>With love, from {fromName || 'a secret admirer'}</small>
+                        <small>
+                          {fromRole ? `From your ${roleLabel(fromRole)} ${fromName.trim() || ''}`.trim() : `With love, from ${fromName.trim() || 'a secret admirer'}`}
+                        </small>
                       </div>
                       <div className="cv2-pc-body">
                         <span className="cv2-pc-tag">{emoji?.icon} {emoji?.label}</span>
                         <blockquote>
                           “{(message.trim() || generateWish(forName || 'friend', emotion)).split('\n\n')[1]?.replace(/\n/g, ' ')?.slice(0, 90) ?? 'A celebration made just for you.'}…”
                         </blockquote>
-                        {memories.length > 0 && (
+                        {memories.filter((m) => m.type === 'image').length > 0 && (
                           <div className="cv2-pc-photos">
-                            {memories.slice(0, 3).map((m) => (
+                            {memories.filter((m) => m.type === 'image').slice(0, 3).map((m) => (
                               <span key={m.id} style={{ backgroundImage: `url(${m.dataUrl})` }} />
                             ))}
+                            {memories.filter((m) => m.type === 'video').length > 0 && (
+                              <span className="cv2-pc-video-chip">🎬 {memories.filter((m) => m.type === 'video').length} video</span>
+                            )}
                           </div>
                         )}
                         <div className="cv2-pc-foot">

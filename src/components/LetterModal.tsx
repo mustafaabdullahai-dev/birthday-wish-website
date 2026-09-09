@@ -8,6 +8,7 @@ interface Props {
   name: string
   message: string
   fromName?: string
+  fromRole?: string
   palette: Palette
   onClose: () => void
 }
@@ -34,7 +35,7 @@ function insertable(seg: string): boolean {
   return seg.trim().length > 0 && seg !== '\n'
 }
 
-export function LetterModal({ name, message, fromName, palette, onClose }: Props) {
+export function LetterModal({ name, message, fromName, fromRole, palette, onClose }: Props) {
   const [opened, setOpened] = useState(false)
   const fact = useMemo(() => surpriseFact(name), [name])
 
@@ -90,7 +91,7 @@ export function LetterModal({ name, message, fromName, palette, onClose }: Props
               ✕
             </button>
             <div className="letter-inner">
-              <LetterBody message={message} name={name} fromName={fromName} palette={palette} />
+              <LetterBody message={message} name={name} fromName={fromName} fromRole={fromRole} palette={palette} />
               <div className="surprise-line">✨ {fact}</div>
             </div>
             <div className="letter-actions">
@@ -105,7 +106,7 @@ export function LetterModal({ name, message, fromName, palette, onClose }: Props
   )
 }
 
-function LetterBody({ message, name, fromName, palette }: { message: string; name: string; fromName?: string; palette: Palette }) {
+function LetterBody({ message, name, fromName, fromRole, palette }: { message: string; name: string; fromName?: string; fromRole?: string; palette: Palette }) {
   const { segments, isName } = useMemo(() => splitMessage(message, name), [message, name])
   const [count, setCount] = useState(0)
   const speed = 22
@@ -145,7 +146,7 @@ function LetterBody({ message, name, fromName, palette }: { message: string; nam
       {pending.length > 0 && <span className="cursor-blink">▍</span>}
       {count >= segments.length && fromName && (
         <div className="letter-sign">
-          — with love, <strong>{fromName}</strong>
+          {fromRole ? <>— from your <strong>{fromRole}</strong>, with love, <strong>{fromName}</strong></> : <>— with love, <strong>{fromName}</strong></>}
         </div>
       )}
     </div>

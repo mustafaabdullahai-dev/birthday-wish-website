@@ -16,10 +16,11 @@ interface Props {
   cakeColor?: string
   cakeMessage?: string
   cakeFrom?: string
+  cakeFromRole?: string
   cakeMemories?: MemoryFile[]
 }
 
-export function CelebrateScreen({ name, palette, cakeColor, cakeMessage, cakeFrom, cakeMemories }: Props) {
+export function CelebrateScreen({ name, palette, cakeColor, cakeMessage, cakeFrom, cakeFromRole, cakeMemories }: Props) {
   const setStage = useStore((s) => s.setStage)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const [stage, setLocalStage] = useState<'intro' | 'cake' | 'letter' | 'gifts'>('intro')
@@ -93,7 +94,11 @@ export function CelebrateScreen({ name, palette, cakeColor, cakeMessage, cakeFro
 
       {cakeFrom && (
         <div className="wish-badge">
-          💌 A wish from <strong>{cakeFrom}</strong>
+          {cakeFromRole ? (
+            <>💌 A wish from your <strong>{cakeFromRole}</strong></>
+          ) : (
+            <>💌 A wish from <strong>{cakeFrom}</strong></>
+          )}
         </div>
       )}
 
@@ -120,6 +125,7 @@ export function CelebrateScreen({ name, palette, cakeColor, cakeMessage, cakeFro
             name={name}
             message={message}
             fromName={cakeFrom}
+            fromRole={cakeFromRole}
             palette={palette}
             onClose={handleLetterClose}
           />

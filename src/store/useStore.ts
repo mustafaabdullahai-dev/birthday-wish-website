@@ -111,6 +111,8 @@ export function saveWishLink(input: {
   cakeColor: string
   memories: MemoryFile[]
   themePreset?: ThemePreset
+  fromRole?: string
+  toRole?: string
   expiresAt?: string
   birthday?: string
   birthdayKnown?: boolean
@@ -126,6 +128,8 @@ export function saveWishLink(input: {
     cakeColor: input.cakeColor,
     theme: String(hashName(input.forName) % 6),
     themePreset: input.themePreset,
+    fromRole: input.fromRole,
+    toRole: input.toRole,
     expiresAt: input.expiresAt,
     birthday: input.birthday,
     birthdayKnown: input.birthdayKnown,

@@ -58,6 +58,7 @@ interface CelebrateCtx {
   cakeColor?: string
   message?: string
   fromName?: string
+  fromRole?: string
   memories?: MemoryFile[]
 }
 
@@ -136,6 +137,7 @@ export default function App() {
         cakeColor: themedFromLink.cakeColor,
         message: themedFromLink.message,
         fromName: themedFromLink.fromName,
+        fromRole: themedFromLink.fromRole,
         memories: themedFromLink.memories,
       }
     : celebrateCtx
@@ -150,6 +152,7 @@ export default function App() {
           cakeColor={activeCtx.cakeColor}
           cakeMessage={activeCtx.message}
           cakeFrom={activeCtx.fromName}
+          cakeFromRole={activeCtx.fromRole}
           cakeMemories={activeCtx.memories}
         />
       </Suspense>

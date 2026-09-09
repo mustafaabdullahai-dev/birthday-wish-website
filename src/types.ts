@@ -1,6 +1,51 @@
 export type Emotion = 'joyful' | 'heartfelt' | 'funny' | 'inspiring' | 'romantic'
 
-export type ThemePreset = 'classic-gold' | 'pastel-dream' | 'midnight-neon'
+export type ThemePreset =
+  | 'classic-gold'
+  | 'pastel-dream'
+  | 'midnight-neon'
+  | 'rose-blush'
+  | 'emerald-veil'
+  | 'sunset-amber'
+  | 'royal-berry'
+  | 'ocean-breeze'
+  | 'vintage-lace'
+  | 'candy-pop'
+
+export type CardArt =
+  | 'confetti'
+  | 'balloons'
+  | 'stars'
+  | 'hearts'
+  | 'sparkle'
+  | 'rays'
+  | 'fireworks'
+  | 'waves'
+  | 'flowers'
+  | 'dots'
+
+export const FAMILY_ROLE_IDS = [
+  'father',
+  'mother',
+  'son',
+  'daughter',
+  'grandfather',
+  'grandmother',
+  'grandson',
+  'granddaughter',
+  'uncle',
+  'aunt',
+  'nephew',
+  'niece',
+  'brother',
+  'sister',
+  'husband',
+  'wife',
+  'cousin',
+  'friend',
+] as const
+
+export type FamilyRoleId = (typeof FAMILY_ROLE_IDS)[number]
 
 export interface Palette {
   primary: string
@@ -39,6 +84,8 @@ export interface WishLink {
   cakeColor: string
   theme: string
   themePreset?: ThemePreset
+  fromRole?: string
+  toRole?: string
   birthday?: string
   birthdayKnown?: boolean
   memories: MemoryFile[]
