@@ -9,25 +9,24 @@ const MAX_RATE_PER_HOUR = Number(process.env.CELEBRATE_MAX_WRITES_PER_HOUR) || 5
 
 const rateMap = new Map()
 
-function checkRate(ip) {
-  const now = Date.now()
-  const WINDOW = 60 * 60 * 1000
-  const entry = rateMap.get(ip)
-  if (!entry || now - entry.start > WINDOW) {
-    rateMap.set(ip, { start: now, count: 1 })
-    return true
-  }
-  entry.count += 1
-  return entry.count <= MAX_RATE_PER_HOUR
-}
-
 function clientIp(req) {
   const fwd = req.headers.get('x-forwarded-for')
   if (fwd) return fwd.split(',')[0].trim()
   return req.headers.get('x-nf-client-connection-ip') || 'unknown'
 }
 
-function isValidWish(wish) {
+export function checkRate(map, ip, now = Date.now(), max = MAX_RATE_PER_HOUR) {
+  const WINDOW = 60 * 60 * 1000
+  const entry = map.get(ip)
+  if (!entry || now - entry.start > WINDOW) {
+    map.set(ip, { start: now, count: 1 })
+    return true
+  }
+  entry.count += 1
+  return entry.count <= max
+}
+
+export function isValidWish(wish) {
   if (!wish || typeof wish !== 'object') return false
   if (typeof wish.slug !== 'string' || !wish.slug) return false
   if (typeof wish.forName !== 'string' || !wish.forName.trim()) return false
@@ -35,6 +34,10 @@ function isValidWish(wish) {
   if (wish.message && typeof wish.message !== 'string') return false
   if (wish.cakeColor && typeof wish.cakeColor !== 'string') return false
   return true
+}
+
+export function isExpired(wish, now = Date.now()) {
+  return !!wish.expiresAt && new Date(wish.expiresAt).getTime() < now
 }
 
 async function readWish(slug) {
@@ -46,8 +49,8 @@ async function readWish(slug) {
   }
 }
 
-function isExpired(wish) {
-  return !!wish.expiresAt && new Date(wish.expiresAt).getTime() < Date.now()
+function isExpiredWish(wish) {
+  return isExpired(wish)
 }
 
 async function handlePost(req, ip) {
@@ -69,7 +72,7 @@ async function handlePost(req, ip) {
   if (!isValidWish(wish)) {
     return Response.json({ error: 'invalid wish data' }, { status: 400 })
   }
-  if (!checkRate(ip)) {
+  if (!checkRate(rateMap, ip)) {
     return Response.json({ error: 'Too many wishes created. Please try again later.' }, { status: 429 })
   }
   const existing = await readWish(wish.slug)
@@ -90,7 +93,7 @@ async function handleGet(req, url) {
 
   const wish = await readWish(slug)
   if (!wish) return Response.json({ error: 'wish not found', notFound: true }, { status: 404 })
-  if (isExpired(wish)) return Response.json({ error: 'wish expired', expired: true }, { status: 410 })
+  if (isExpiredWish(wish)) return Response.json({ error: 'wish expired', expired: true }, { status: 410 })
   return Response.json(wish)
 }
 
@@ -99,7 +102,7 @@ async function handlePostGuestbook(req, url) {
   if (!slug) return Response.json({ error: 'missing slug' }, { status: 400 })
   const wish = await readWish(slug)
   if (!wish) return Response.json({ error: 'wish not found', notFound: true }, { status: 404 })
-  if (isExpired(wish)) return Response.json({ error: 'wish expired', expired: true }, { status: 410 })
+  if (isExpiredWish(wish)) return Response.json({ error: 'wish expired', expired: true }, { status: 410 })
 
   let body
   try {

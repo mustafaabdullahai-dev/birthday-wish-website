@@ -1,0 +1,54 @@
+import { test, expect } from '@playwright/test'
+
+test('landing page renders and starts the celebration', async ({ page }) => {
+  await page.goto('/')
+
+  await expect(page.getByRole('heading', { name: /celebrate/i })).toBeVisible()
+  await expect(page.getByPlaceholder('Enter the birthday name...')).toBeVisible()
+
+  await page.getByPlaceholder('Enter the birthday name...').fill('Sara')
+  await page.getByRole('button', { name: 'Start the Celebration' }).click()
+
+  // Celebration screen should mount (2D fallback if WebGL is unavailable).
+  await expect(page.locator('.celebration-screen, .fallback-scene').first()).toBeVisible({ timeout: 15_000 })
+})
+
+test('guestbook opens for a wish link', async ({ page }) => {
+  await page.goto('/#/celebrate/sara-abc123')
+
+  // Invalid/unreachable slug -> wish-missing overlay offers to create a wish.
+  await expect(page.getByRole('heading', { name: /could not be found/i })).toBeVisible({ timeout: 10_000 })
+  await page.getByRole('button', { name: /create your own wish/i }).click()
+  await expect(page.getByText(/create a wish link/i)).toBeVisible()
+})
+
+test('create-wish flow produces a shareable link', async ({ page }) => {
+  await page.goto('/')
+
+  await page.getByRole('button', { name: /create a wish link/i }).click()
+  await expect(page.getByText(/someone special/i)).toBeVisible()
+
+  await page.getByPlaceholder('e.g. Sony').fill('Sony')
+  await page.getByPlaceholder(/how it should appear/i).fill('Ayesha')
+
+  const createButton = page.locator('button', { hasText: /generate the wish link/i })
+  await createButton.click()
+
+  // Link appears in a readonly input and is copyable.
+  const shareInput = page.locator('input[readonly]').first()
+  await expect(shareInput).toBeVisible({ timeout: 10_000 })
+  const link = await shareInput.inputValue()
+  expect(link).toMatch(/\/#\/celebrate\/.*-\w+$/)
+})
+
+test('essential controls appear on the celebration controls bar', async ({ page }) => {
+  await page.goto('/')
+
+  await page.getByPlaceholder('Enter the birthday name...').fill('Test')
+  await page.getByRole('button', { name: 'Start the Celebration' }).click()
+
+  const controls = page.locator('.controls-bar')
+  await expect(controls).toBeVisible({ timeout: 15_000 })
+  await expect(controls.getByRole('button', { name: /replay celebration/i })).toBeVisible()
+  await expect(controls.getByRole('button', { name: /choose music/i })).toBeVisible()
+})
