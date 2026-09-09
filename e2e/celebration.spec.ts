@@ -28,17 +28,28 @@ test('create-wish flow produces a shareable link', async ({ page }) => {
   await page.getByRole('button', { name: /create a wish link/i }).click()
   await expect(page.getByText(/someone special/i)).toBeVisible()
 
+  // Step 1: who
   await page.getByPlaceholder('e.g. Sony').fill('Sony')
   await page.getByPlaceholder(/how it should appear/i).fill('Ayesha')
+  await page.getByRole('button', { name: /next/i }).click()
 
-  const createButton = page.locator('button', { hasText: /generate the wish link/i })
-  await createButton.click()
+  // Step 2: vibe — skip (defaults fine)
+  await page.getByRole('button', { name: /next/i }).click()
+
+  // Step 3: memories — skip (defaults fine)
+  await page.getByRole('button', { name: /next/i }).click()
+
+  // Step 4: preview + generate
+  await page.getByRole('button', { name: /generate the wish link/i }).click()
 
   // Link appears in a readonly input and is copyable.
   const shareInput = page.locator('input[readonly]').first()
   await expect(shareInput).toBeVisible({ timeout: 10_000 })
   const link = await shareInput.inputValue()
   expect(link).toMatch(/\/#\/celebrate\/.*-\w+$/)
+
+  // QR code should render for the wish link (2-luv-style share).
+  await expect(page.locator('.qr-img')).toBeVisible({ timeout: 10_000 })
 })
 
 test('essential controls appear on the celebration controls bar', async ({ page }) => {

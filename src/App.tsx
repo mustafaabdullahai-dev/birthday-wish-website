@@ -112,13 +112,9 @@ export default function App() {
   }, [applyLink, applyRemoteLink, setScreen])
 
   useEffect(() => {
-    const valid = session && isSessionValid(session)
     const slug = parseHash()
     if (slug) {
       void handleHash()
-    } else if (valid) {
-      setCelebrateName(session.user.username)
-      setScreen('celebration')
     } else {
       resetMeta()
     }

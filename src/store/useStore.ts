@@ -112,6 +112,8 @@ export function saveWishLink(input: {
   memories: MemoryFile[]
   themePreset?: ThemePreset
   expiresAt?: string
+  birthday?: string
+  birthdayKnown?: boolean
 }): WishLink {
   const links = readWishLinks()
   const link: WishLink = {
@@ -125,6 +127,8 @@ export function saveWishLink(input: {
     theme: String(hashName(input.forName) % 6),
     themePreset: input.themePreset,
     expiresAt: input.expiresAt,
+    birthday: input.birthday,
+    birthdayKnown: input.birthdayKnown,
     memories: input.memories,
     createdAt: todayISO(),
   }

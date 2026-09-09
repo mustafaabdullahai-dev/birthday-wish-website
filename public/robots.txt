@@ -2,4 +2,4 @@ User-agent: *
 Allow: /
 Disallow: /api/
 
-Sitemap: https://birthday-wish-website.netlify.app/sitemap.xml
+Sitemap: https://birthday-wish-website-974.netlify.app/sitemap.xml

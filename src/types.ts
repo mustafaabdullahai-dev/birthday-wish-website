@@ -39,6 +39,8 @@ export interface WishLink {
   cakeColor: string
   theme: string
   themePreset?: ThemePreset
+  birthday?: string
+  birthdayKnown?: boolean
   memories: MemoryFile[]
   createdAt: string
   expiresAt?: string
